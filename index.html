@@ -577,31 +577,59 @@
 
 <!-- Clip Downloader -->
 <div id="mClip" class="modal-back hidden" onclick="onBdClick(event,'mClip')">
-  <div class="modal">
-    <div class="modal-hdr"><span class="mh-icon">✂️</span><h3>Favourite Scene Clip</h3><button class="modal-x" onclick="closeM('mClip')">✕</button></div>
+  <div class="modal modal-lg">
+    <div class="modal-hdr"><span class="mh-icon">✂️</span><h3>Favourite Scene Clip Downloader</h3><button class="modal-x" onclick="closeM('mClip')">✕</button></div>
     <div class="modal-body">
-      <p style="font-size:12px;color:var(--text2)">Set a Start (A) and End (B) point, then download your clip (maximum 10 minutes). Recording captures live audio and video directly to a local webm/mp4 file.</p>
-      <div class="clip-row">
-        <div class="clip-box"><div class="clip-lbl">Start (A)</div><div class="clip-time" id="clipA">—</div></div>
-        <div class="clip-box"><div class="clip-lbl">End (B)</div><div class="clip-time" id="clipB">—</div></div>
+      <p style="font-size:12px;color:var(--text2)">Set or type your Start and End time (maximum 10 minutes). Once set, it automatically downloads your clip!</p>
+
+      <!-- Time editors row -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+        <div class="clip-box">
+          <div class="clip-lbl">Start (A)</div>
+          <input type="text" id="inpClipStart" class="fi" value="0:00:00" placeholder="0:00:00" style="text-align:center;font-size:16px;font-weight:700;margin-top:4px" onchange="onManualClipChange('start')">
+          <button class="btn btn-p" style="margin-top:6px;width:100%;font-size:11px" onclick="setClipA()">📍 Set Current</button>
+        </div>
+        <div class="clip-box">
+          <div class="clip-lbl">End (B)</div>
+          <input type="text" id="inpClipEnd" class="fi" value="0:00:00" placeholder="0:00:00" style="text-align:center;font-size:16px;font-weight:700;margin-top:4px" onchange="onManualClipChange('end')">
+          <button class="btn btn-p" style="margin-top:6px;width:100%;font-size:11px" onclick="setClipB()">📍 Set Current</button>
+        </div>
+        <div class="clip-box">
+          <div class="clip-lbl">Duration (Max 10m)</div>
+          <input type="text" id="inpClipDur" class="fi" value="0:00:00" placeholder="0:00:00" style="text-align:center;font-size:16px;font-weight:700;margin-top:4px" onchange="onManualClipChange('dur')">
+          <div style="display:flex;gap:4px;margin-top:6px">
+            <button class="btn" style="flex:1;font-size:10px;padding:4px 2px" onclick="addClipDur(5)">+5s</button>
+            <button class="btn" style="flex:1;font-size:10px;padding:4px 2px" onclick="addClipDur(15)">+15s</button>
+            <button class="btn" style="flex:1;font-size:10px;padding:4px 2px" onclick="addClipDur(30)">+30s</button>
+            <button class="btn" style="flex:1;font-size:10px;padding:4px 2px" onclick="addClipDur(60)">+1m</button>
+          </div>
+        </div>
       </div>
-      <div class="clip-box" style="margin-top:8px"><div class="clip-lbl">Clip Duration (Max 10 min)</div><div class="clip-time" id="clipDur">—</div></div>
-      <div id="clipProgressWrap" class="hidden" style="margin-top:10px;background:var(--bg3);padding:10px;border-radius:8px;border:1px solid var(--border)">
+
+      <!-- Auto download checkbox & info -->
+      <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);padding:10px 14px;border-radius:8px;border:1px solid var(--border);margin-bottom:12px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer">
+          <input type="checkbox" id="chkAutoDownload" checked style="width:16px;height:16px;accent-color:var(--ac)">
+          ⚡ Automatically start &amp; download when A and B are set
+        </label>
+        <span id="clipTimeValid" style="font-size:11px;color:var(--text3)">Set Start and End</span>
+      </div>
+
+      <!-- Live progress bar -->
+      <div id="clipProgressWrap" class="hidden" style="margin-bottom:12px;background:var(--bg3);padding:12px;border-radius:8px;border:1px solid var(--border)">
         <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600;margin-bottom:6px">
           <span id="clipProgLabel" style="color:var(--danger)">🔴 Recording clip...</span>
           <span id="clipProgPct" style="color:var(--ac)">0%</span>
         </div>
-        <div style="height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden">
+        <div style="height:8px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden">
           <div id="clipProgFill" style="height:100%;width:0%;background:linear-gradient(90deg,var(--ac),var(--danger));transition:width .2s"></div>
         </div>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-        <button class="btn btn-p" onclick="setClipA()">📍 Set Start (A)</button>
-        <button class="btn btn-p" onclick="setClipB()">📍 Set End (B)</button>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-        <button class="btn" id="btnDownClip" onclick="downloadClip()" style="border-color:var(--success);color:var(--success)" disabled>⬇ Download Clip</button>
-        <button class="btn btn-d" id="btnStopClip" onclick="stopClipEarly()" style="display:none">⏹ Stop &amp; Save</button>
+
+      <!-- Action buttons -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-p" id="btnDownClip" onclick="downloadClip()" style="border-color:var(--success);color:var(--success);padding:9px 20px" disabled>⬇ Download Clip</button>
+        <button class="btn btn-d" id="btnStopClip" onclick="stopClipEarly()" style="display:none;padding:9px 20px">⏹ Stop &amp; Save Now</button>
         <button class="btn btn-d" onclick="clearClip()">🗑 Clear</button>
       </div>
     </div>

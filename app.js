@@ -540,22 +540,30 @@ async function clearPlaylist() {
   flash('🗑 PLAYLIST CLEARED');
 }
 
-// ─── AUTO-RESUME ─────────────────────────────────────────────────────────────
+
+// ─── AUTO-RESUME (Seamless on Refresh) ───────────────────────────────────────
 async function checkResume() {
   try {
     const raw = localStorage.getItem('bp_session');
     if (!raw) return;
     const s = JSON.parse(raw);
-    if (!s || s.time < 2 || !s.localId) return;
+    if (!s || s.time < 0.5) return;
 
-    const file = await LOCAL_DB.getFile(s.localId);
+    // Get file from local storage
+    let file = null;
+    if (s.localId) file = await LOCAL_DB.getFile(s.localId);
+    if (!file && BP.playlist.length > 0) {
+      const match = BP.playlist.find(p => p.id === s.localId || p.filename === s.filename) || BP.playlist[0];
+      if (match && match.id) file = await LOCAL_DB.getFile(match.id);
+    }
+
     if (!file) return;
 
     const v = $('mainVideo');
     const url = URL.createObjectURL(file);
     BP.media = {
       url,
-      title: s.title || 'Media',
+      title: s.title || file.name,
       year: s.year || '',
       genre: s.genre || 'Action',
       poster: s.poster || '',
@@ -563,7 +571,7 @@ async function checkResume() {
       size: s.size || file.size,
       filename: s.filename || file.name,
       isLocalDb: true,
-      localId: s.localId
+      localId: s.localId || (BP.playlist[0] ? BP.playlist[0].id : null)
     };
 
     v.src = url;
@@ -574,62 +582,67 @@ async function checkResume() {
     updateNowPlaying();
     updateInspector();
 
-    v.addEventListener('loadedmetadata', () => { v.currentTime = s.time; }, { once: true });
+    // Set time immediately when metadata is ready
+    v.addEventListener('loadedmetadata', () => {
+      v.currentTime = s.time;
+    }, { once: true });
+
     v.addEventListener('canplay', () => {
+      v.currentTime = s.time;
+      // Attempt immediate play with sound
       v.play().then(() => {
         BP.v.playing = true;
         setPlayIcon(false);
         showHUD('▶', 'RESUMED at ' + fmt(s.time));
         updateTogglesBar();
       }).catch(() => {
-        setPlayIcon(true);
-        showResumeBtn(s.time, s.title || 'Media');
+        // Browser autoplay policy blocked un-muted play: play muted seamlessly!
+        v.muted = true;
+        v.play().then(() => {
+          BP.v.playing = true;
+          setPlayIcon(false);
+          showHUD('▶', 'RESUMED (Muted - Click to Unmute)');
+          // Restore sound on first user gesture
+          const unmute = () => {
+            v.muted = false;
+            v.volume = Math.min(1, BP.a.vol || 1);
+            showHUD('🔊', Math.round((BP.a.vol || 1) * 100) + '%');
+            ['click', 'keydown', 'touchstart'].forEach(ev => window.removeEventListener(ev, unmute));
+          };
+          ['click', 'keydown', 'touchstart'].forEach(ev => window.addEventListener(ev, unmute, { once: true }));
+        }).catch(() => {
+          setPlayIcon(true);
+        });
       });
     }, { once: true });
   } catch (e) {
-    console.warn('Resume failed:', e);
+    console.warn('Resume note:', e);
   }
-}
-
-function showResumeBtn(time, title) {
-  const rb = $('resumeBtn'); if (!rb) return;
-  rb.classList.remove('hidden');
-  const ri = $('resumeInfo');
-  if (ri) ri.textContent = '▶ Resume "' + (title || 'Media').substring(0, 30) + '" at ' + fmt(time);
-  rb.onclick = () => {
-    rb.classList.add('hidden');
-    const v = $('mainVideo');
-    v.currentTime = time;
-    v.play().then(() => {
-      BP.v.playing = true;
-      setPlayIcon(false);
-      showHUD('▶', 'RESUMED');
-    }).catch(() => {});
-  };
 }
 
 function saveProgress() {
   const v = $('mainVideo');
-  if (!v || !BP.media.localId || v.currentTime < 2) return;
-  localStorage.setItem('bp_session', JSON.stringify({
-    localId: BP.media.localId,
-    title: BP.media.title,
-    year: BP.media.year,
-    genre: BP.media.genre,
-    poster: BP.media.poster,
-    type: BP.media.type,
-    size: BP.media.size,
-    filename: BP.media.filename,
-    time: v.currentTime,
-    duration: v.duration || 0,
-    ts: Date.now()
-  }));
+  if (!v || isNaN(v.currentTime) || v.currentTime < 0.5) return;
+  const localId = BP.media.localId || (BP.playlist[0] ? BP.playlist[0].id : null);
+  if (!localId && !BP.media.filename) return;
+
+  try {
+    localStorage.setItem('bp_session', JSON.stringify({
+      localId: localId,
+      filename: BP.media.filename || '',
+      title: BP.media.title || 'Media',
+      time: v.currentTime,
+      duration: v.duration || 0,
+      ts: Date.now()
+    }));
+  } catch {}
 }
 
 function clearProgress() {
   localStorage.removeItem('bp_session');
   flash('🗑 RESUME CLEARED');
 }
+
 
 // ─── NOW PLAYING & INSPECTOR ─────────────────────────────────────────────────
 function updateNowPlaying() {
@@ -1050,39 +1063,112 @@ function checkLoopAB() {
   if (v.currentTime >= BP.loop.b) v.currentTime = BP.loop.a;
 }
 
-// ─── CLIP DOWNLOADER (Max 10 min, live progress & Stop & Save) ───────────────
+
+// ─── CLIP TIME PARSER & EDITABLE CONTROLS ─────────────────────────────────────
+function parseTimeToSeconds(str) {
+  if (typeof str === 'number') return str;
+  if (!str) return 0;
+  const parts = str.trim().split(':').map(p => parseFloat(p) || 0);
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.length === 1) return parts[0];
+  return 0;
+}
+
+function updateClipUI(fromAuto = false) {
+  const startInp = $('inpClipStart');
+  const endInp   = $('inpClipEnd');
+  const durInp   = $('inpClipDur');
+  const validLbl = $('clipTimeValid');
+  const downBtn  = $('btnDownClip');
+
+  if (startInp && BP.c.a >= 0) startInp.value = fmt(BP.c.a);
+  if (endInp && BP.c.b >= 0)   endInp.value   = fmt(BP.c.b);
+
+  if (BP.c.a >= 0 && BP.c.b > BP.c.a) {
+    const dur = BP.c.b - BP.c.a;
+    if (durInp) {
+      durInp.value = fmt(dur);
+      durInp.style.color = dur > BP.c.maxSec ? 'var(--danger)' : 'var(--ac)';
+    }
+    if (validLbl) {
+      if (dur > BP.c.maxSec) {
+        validLbl.textContent = '⚠ Maximum clip duration is 10 minutes!';
+        validLbl.style.color = 'var(--danger)';
+      } else {
+        validLbl.textContent = '✓ Ready to download (' + fmt(dur) + ')';
+        validLbl.style.color = 'var(--success)';
+      }
+    }
+    if (downBtn) downBtn.disabled = (dur > BP.c.maxSec);
+
+    // Auto-download if enabled and not already recording
+    const chkAuto = $('chkAutoDownload');
+    if (fromAuto && chkAuto && chkAuto.checked && dur <= BP.c.maxSec && !BP.c.recording) {
+      flash('⚡ Auto-starting clip download...');
+      setTimeout(() => downloadClip(), 300);
+    }
+  } else {
+    if (durInp) durInp.value = '0:00:00';
+    if (validLbl) {
+      validLbl.textContent = 'Set Start and End times';
+      validLbl.style.color = 'var(--text3)';
+    }
+    if (downBtn) downBtn.disabled = true;
+  }
+}
+
+function onManualClipChange(type) {
+  const startInp = $('inpClipStart');
+  const endInp   = $('inpClipEnd');
+  const durInp   = $('inpClipDur');
+
+  if (type === 'start' && startInp) {
+    BP.c.a = parseTimeToSeconds(startInp.value);
+    if (BP.c.b <= BP.c.a) BP.c.b = BP.c.a + 10;
+  } else if (type === 'end' && endInp) {
+    BP.c.b = parseTimeToSeconds(endInp.value);
+    if (BP.c.a < 0) BP.c.a = 0;
+  } else if (type === 'dur' && durInp) {
+    const dur = parseTimeToSeconds(durInp.value);
+    if (BP.c.a < 0) BP.c.a = $('mainVideo').currentTime || 0;
+    BP.c.b = BP.c.a + Math.min(BP.c.maxSec, Math.max(1, dur));
+  }
+
+  updateClipUI(true);
+}
+
+function addClipDur(secs) {
+  const v = $('mainVideo');
+  if (BP.c.a < 0) BP.c.a = v ? v.currentTime : 0;
+  BP.c.b = BP.c.a + secs;
+  updateClipUI(true);
+}
+
 function setClipA() {
-  BP.c.a = $('mainVideo').currentTime;
-  if ($('clipA')) $('clipA').textContent = fmt(BP.c.a);
-  flash('🎬 START: ' + fmt(BP.c.a));
-  updateClipUI();
+  const v = $('mainVideo');
+  BP.c.a = v ? v.currentTime : 0;
+  flash('🎬 START (A): ' + fmt(BP.c.a));
+  updateClipUI(false);
 }
 
 function setClipB() {
-  BP.c.b = $('mainVideo').currentTime;
-  if ($('clipB')) $('clipB').textContent = fmt(BP.c.b);
-  flash('🏁 END: ' + fmt(BP.c.b));
-  updateClipUI();
-}
-
-function updateClipUI() {
-  if (BP.c.a >= 0 && BP.c.b > BP.c.a) {
-    const dur = BP.c.b - BP.c.a;
-    if ($('clipDur')) {
-      $('clipDur').textContent = fmt(dur) + (dur > BP.c.maxSec ? ' ⚠ Exceeds 10m!' : '');
-      $('clipDur').style.color = dur > BP.c.maxSec ? 'var(--danger)' : 'var(--ac)';
-    }
-    if ($('btnDownClip')) $('btnDownClip').disabled = (dur > BP.c.maxSec);
-  }
+  const v = $('mainVideo');
+  BP.c.b = v ? v.currentTime : 0;
+  if (BP.c.a < 0) BP.c.a = Math.max(0, BP.c.b - 10);
+  if (BP.c.b <= BP.c.a) BP.c.b = BP.c.a + 10;
+  flash('🏁 END (B): ' + fmt(BP.c.b));
+  updateClipUI(true); // Triggers auto-download if enabled!
 }
 
 function clearClip() {
   BP.c.a = -1; BP.c.b = -1;
-  if ($('clipA')) $('clipA').textContent = '—';
-  if ($('clipB')) $('clipB').textContent = '—';
-  if ($('clipDur')) { $('clipDur').textContent = '—'; $('clipDur').style.color = ''; }
-  if ($('btnDownClip')) $('btnDownClip').disabled = true;
-  const prog = $('clipProgressWrap'); if (prog) prog.classList.add('hidden');
+  const startInp = $('inpClipStart'); if (startInp) startInp.value = '0:00:00';
+  const endInp   = $('inpClipEnd');   if (endInp)   endInp.value   = '0:00:00';
+  const durInp   = $('inpClipDur');   if (durInp)   { durInp.value = '0:00:00'; durInp.style.color = ''; }
+  const validLbl = $('clipTimeValid'); if (validLbl) { validLbl.textContent = 'Set Start and End times'; validLbl.style.color = 'var(--text3)'; }
+  const downBtn  = $('btnDownClip');  if (downBtn)  downBtn.disabled = true;
+  const prog     = $('clipProgressWrap'); if (prog) prog.classList.add('hidden');
 }
 
 function getBestRecorderMimeType() {
@@ -1152,7 +1238,7 @@ async function downloadClip() {
     a.download = `${cleanTitle(BP.media.title || 'BetaPlayer')}_Clip_${Date.now()}.${ext}`;
     a.click();
     URL.revokeObjectURL(a.href);
-    flash('💾 CLIP DOWNLOADED SUCCESSFULLY!');
+    flash('💾 CLIP DOWNLOADED AUTOMATICALLY!');
   };
 
   // Start recording
@@ -1194,6 +1280,7 @@ function stopClipEarly() {
     flash('⏹ RECORDING STOPPED & SAVED');
   }
 }
+
 
 // ─── IN-BUILT SUBTITLES (Telegram / MKV / MP4 embedded tracks) ────────────────
 function detectInbuildSubtitles() {
@@ -2118,6 +2205,20 @@ async function boot() {
   await LOCAL_DB.init();
   loadLocalPlaylist();
 
+  // Save progress on pause, seek, and beforeunload so refresh always resumes exact second
+  window.addEventListener('beforeunload', saveProgress);
+  window.addEventListener('pagehide', saveProgress);
+  if (v) {
+    v.addEventListener('pause', saveProgress);
+    v.addEventListener('seeking', saveProgress);
+    v.addEventListener('seeked', saveProgress);
+  }
+
+  // Auto-resume immediately on boot without delay
+  setTimeout(async () => {
+    await checkResume();
+  }, 400);
+
   // Hook in-built subtitle detector on video events
   const v = $('mainVideo');
   if (v) {
@@ -2126,11 +2227,7 @@ async function boot() {
   }
 
   // Auto-resume if previous session existed in this browser
-  if (!isNew) {
-    setTimeout(async () => {
-      await checkResume();
-    }, 1500);
-  }
+  
 
   console.log('%c🎬 BETA PLAYER v2.0', 'font-size:18px;font-weight:bold;color:#06b6d4');
   console.log('%cDeveloper: Surendhar S | B.E. CSE | 2025-2029 Batch', 'color:#818cf8');
