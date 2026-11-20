@@ -1,0 +1,17 @@
+{
+  "name": "movie-player-app",
+  "version": "1.0.0",
+  "description": "A state-of-the-art media player built with a futuristic sidebar, user profile system, 3D/4D/5D sensory play views, 1000% audio boost, 30+ design fonts, 50+ cinema colors, reversed remaining time display, and persistent playback memory.",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "multer": "^2.5.0"
+  }
+}

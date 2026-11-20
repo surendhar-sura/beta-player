@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BETA PLAYER v2.0 — by Surendhar S</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ================================================================
+     BOOT LOADER
+     ================================================================ -->
+<div id="betaLoader">
+  <div class="boot-logo">
+    <div class="bl-ring"></div><div class="bl-ring"></div><div class="bl-ring"></div>
+    <div class="bl-core">β</div>
+  </div>
+  <div id="bootTerminal"></div>
+  <div id="bootScanBar"></div>
+  <div id="bootMainTitle">BETA PLAYER</div>
+  <button id="btnSkipLoader" onclick="dismissLoader()">SKIP →</button>
+</div>
+
+<!-- ================================================================
+     ONBOARDING (first time)
+     ================================================================ -->
+<div id="onboardingOverlay" class="hidden">
+  <div class="ob-box">
+    <div class="ob-brand">
+      <div class="ob-logo">β BETA PLAYER</div>
+      <div class="ob-sub">First Time Setup</div>
+    </div>
+    <div class="ob-title">Welcome! 👋</div>
+    <div class="ob-desc">Tell us about yourself to personalize your experience.</div>
+    <div class="ob-field">
+      <div class="ob-label">Your Name *</div>
+      <input id="obName" class="ob-input" placeholder="e.g. Surendhar S" autocomplete="name">
+    </div>
+    <div class="ob-field">
+      <div class="ob-label">Short Bio (optional)</div>
+      <input id="obBio" class="ob-input" placeholder="e.g. CSE student, movie lover...">
+    </div>
+    <div class="ob-field">
+      <div class="ob-label">Favourite Genre</div>
+      <select id="obGenre" class="ob-select ob-input">
+        <option value="Action">Action</option>
+        <option value="Comedy">Comedy</option>
+        <option value="Thriller">Thriller</option>
+        <option value="Sci-Fi">Sci-Fi</option>
+        <option value="Romance">Romance</option>
+        <option value="Horror">Horror</option>
+        <option value="Animation">Animation</option>
+        <option value="Soundtrack">Soundtrack / Music</option>
+        <option value="Documentary">Documentary</option>
+        <option value="Drama">Drama</option>
+      </select>
+    </div>
+    <div id="obError" class="ob-err"></div>
+    <button class="ob-submit" onclick="submitOnboarding()">Enter Beta Player →</button>
+  </div>
+</div>
+
+<!-- ================================================================
+     APP SHELL
+     ================================================================ -->
+<div id="shell">
+
+  <!-- HEADER -->
+  <header id="hdr">
+    <a class="hdr-logo" href="#" onclick="return false">
+      <div class="hdr-logo-icon">β</div>
+      <div>
+        <div class="hdr-logo-text">BETA PLAYER</div>
+        <div class="hdr-logo-sub">BY SURENDHAR S</div>
+      </div>
+    </a>
+
+    <!-- Now playing pill -->
+    <div id="nowPlayingPill" class="hidden" onclick="openM('mInspector')">
+      <div class="np-dot"></div>
+      <div class="np-title" id="npTitle">No Media</div>
+      <div class="np-badge" id="npBadge">—</div>
+    </div>
+
+    <div class="hdr-gap"></div>
+
+    <div class="hdr-actions">
+      <button class="hdr-btn" onclick="togglePlaylistPanel()" title="Playlist (P)">
+        <span class="hdr-btn-icon">📋</span>
+        <span class="hdr-btn-label">Playlist</span>
+      </button>
+      <button class="hdr-btn" onclick="openM('mAppearance')" title="Appearance (G)">
+        <span class="hdr-btn-icon">🎨</span>
+        <span class="hdr-btn-label">Theme</span>
+      </button>
+      <button class="hdr-btn" onclick="openM('mSettings')" title="Settings">
+        <span class="hdr-btn-icon">⚙️</span>
+        <span class="hdr-btn-label">Settings</span>
+      </button>
+
+      <!-- Upload -->
+      <label class="hdr-btn-upload" title="Upload Movie (O)">
+        ⬆ Upload
+        <input id="mainFileInput" type="file" accept="video/*,audio/*" onchange="onFileSelected(this)">
+      </label>
+
+      <!-- Avatar -->
+      <div class="hdr-avatar" onclick="openM('mProfile')" title="My Profile">
+        <img id="avatarImg" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='36' r='24' fill='%2306b6d4'/%3E%3Ccircle cx='50' cy='96' r='34' fill='%2306b6d4'/%3E%3C/svg%3E" alt="Avatar">
+      </div>
+    </div>
+  </header>
+
+  <!-- TOGGLES BAR -->
+  <div id="togglesBar">
+    <span style="font-size:10px;color:var(--text3);font-weight:700;letter-spacing:1px;flex-shrink:0">QUICK TOGGLES</span>
+    <div class="tg-sep"></div>
+    <button id="tgLoop" class="tg-btn" onclick="cycleLoop()" title="A-B Loop"><span class="tg-dot"></span>LOOP</button>
+    <button id="tgSubs" class="tg-btn" onclick="toggleSubs()" title="Subtitles"><span class="tg-dot"></span>SUBS</button>
+    <button id="tgMute" class="tg-btn" onclick="toggleMute()" title="Mute"><span class="tg-dot"></span>MUTE</button>
+    <button id="tgHp" class="tg-btn" onclick="toggleAudioMode()" title="Headphones"><span class="tg-dot"></span>🎧 HP</button>
+    <button id="tg3D" class="tg-btn" onclick="setDim(BP.v.dim==='off'?'3d':'off')" title="3D Mode"><span class="tg-dot"></span>3D</button>
+    <div class="tg-sep"></div>
+    <button class="tg-btn" onclick="setSpd(1)" title="Reset speed"><span class="tg-dot" style="background:var(--ac)"></span>1x SPD</button>
+    <button class="tg-btn" onclick="setSpd(1.5)"><span class="tg-dot" style="background:#fbbf24"></span>1.5x</button>
+    <button class="tg-btn" onclick="setSpd(2)"><span class="tg-dot" style="background:#f97316"></span>2x</button>
+    <div class="tg-sep"></div>
+    <button class="tg-btn" onclick="setMode('fit')"><span class="tg-dot"></span>FIT</button>
+    <button class="tg-btn" onclick="setMode('theater')"><span class="tg-dot"></span>THEATER</button>
+    <button class="tg-btn" onclick="setMode('21:9')"><span class="tg-dot"></span>21:9</button>
+    <div class="tg-sep"></div>
+    <button class="tg-btn" onclick="openM('mGenreLists')"><span class="tg-dot" style="background:#c084fc"></span>📂 LISTS</button>
+    <div class="ctrl-gap"></div>
+    <span class="version-badge">v2.0</span>
+  </div>
+
+  <!-- BODY -->
+  <div id="body">
+
+    <!-- MINI NAV (left icon bar) -->
+    <nav id="miniNav">
+      <button class="mn-btn" onclick="openM('mLibrary')" title="Library">
+        🎬<span class="lbl">Library</span>
+        <span id="navCount" class="mn-badge" style="display:none">0</span>
+      </button>
+      <button class="mn-btn" onclick="openM('mAudio')" title="Audio Lab">🎧<span class="lbl">Audio</span></button>
+      <button class="mn-btn" onclick="openM('mSubtitle')" title="Subtitles">💬<span class="lbl">Subs</span></button>
+      <button class="mn-btn" onclick="openM('mClip')" title="Clip Download">✂️<span class="lbl">Clip</span></button>
+      <div class="mn-sep"></div>
+      <button class="mn-btn" onclick="openM('m3D')" title="3D/4D/5D">🌐<span class="lbl">3D</span></button>
+      <button class="mn-btn" onclick="openM('mAppearance')" title="Appearance">🎨<span class="lbl">Theme</span></button>
+      <div class="mn-sep"></div>
+      <button class="mn-btn" onclick="openM('mBackup')" title="Backup">💾<span class="lbl">Backup</span></button>
+      <button class="mn-btn" onclick="openM('mKeys')" title="Keys">⌨️<span class="lbl">Keys</span></button>
+      <div class="mn-sep"></div>
+      <div id="genreSidebar"></div>
+      <button class="mn-btn" onclick="openM('mGenreLists')" title="My Playlists">📂<span class="lbl">Lists</span></button>
+    </nav>
+
+    <!-- VIDEO STAGE -->
+    <div id="stage">
+      <div id="videoWrap">
+        <!-- Click overlay (handles play/pause including touchpad) -->
+        <div id="clickOverlay" ondblclick="toggleFullscreen()"></div>
+
+        <!-- Main video -->
+        <video id="mainVideo" playsinline preload="auto"
+          ontimeupdate="onTimeUpdate()"
+          onended="onVideoEnded()"
+          onplay="onVideoPlay()"
+          onpause="onVideoPause()"
+          onerror="onVideoError()">
+        </video>
+
+        <!-- Dropzone -->
+        <div id="dropzone"
+          ondragover="onDragOver(event)"
+          ondragleave="onDragLeave(event)"
+          ondrop="onDrop(event)">
+          <div class="dz-emoji">🎬</div>
+          <div class="dz-h">Drop Your Movie Here</div>
+          <div class="dz-p">or click the button below to browse</div>
+          <label class="dz-btn">
+            📁 Choose File
+            <input type="file" accept="video/*,audio/*" style="display:none" onchange="onFileSelected(this)">
+          </label>
+          <div class="dz-fmt">MP4 · MKV · AVI · MOV · WEBM · MP3 · FLAC · WAV · AAC</div>
+        </div>
+
+        <!-- Music Studio -->
+        <div id="musicStudio" class="hidden">
+          <canvas id="specCanvas" width="300" height="56"></canvas>
+          <div id="vinylDisc"><img id="vinylCover" src="" alt="Cover"></div>
+          <div id="trackTitle">No Track</div>
+          <div id="trackArtist">Beta Player</div>
+        </div>
+
+        <!-- Center HUD -->
+        <div id="centerHUD" class="hidden">
+          <div class="hud-circle"><span id="hudIcon">▶</span></div>
+          <div class="hud-label" id="hudLabel">PLAYING</div>
+        </div>
+
+        <!-- Flash pip -->
+        <div id="flashPip" class="hidden"><span id="flashTxt"></span></div>
+
+        <!-- Orbit HUD -->
+        <div id="orbitHUD" class="hidden">
+          <span>X:<span id="oPitch">0</span>°</span>
+          <span>Y:<span id="oYaw">0</span>°</span>
+          <span>Z:<span id="oRoll">0</span>°</span>
+        </div>
+
+        <!-- Subtitle overlay -->
+        <div id="subOverlay" class="hidden"><div id="subBox"></div></div>
+
+        <!-- Subtitle quick panel (shown above controls bar) -->
+        <div id="subQuickPanel" class="hidden">
+          <span class="sqp-title">💬 Subtitle</span>
+          <span class="sqp-current" id="sqpCurrent">None loaded</span>
+          <div class="sqp-actions">
+            <label class="btn" style="cursor:pointer;padding:5px 12px;font-size:11px">
+              Load SRT
+              <input type="file" accept=".srt,.vtt,.ass" style="display:none" onchange="loadSubFile(this)">
+            </label>
+            <button class="btn" style="padding:5px 12px;font-size:11px" onclick="clearSubs()">Clear</button>
+            <button class="btn" style="padding:5px 12px;font-size:11px" onclick="toggleSubs()">Toggle</button>
+            <button class="btn btn-d" style="padding:5px 12px;font-size:11px" onclick="hideSubPanel()">✕</button>
+          </div>
+        </div>
+
+        <!-- Upload progress -->
+        <div id="uploadProgress" class="hidden">
+          <div class="up-title">⬆ Uploading to Beta Player...</div>
+          <div class="up-bar"><div class="up-fill" id="upFill" style="width:0%"></div></div>
+          <div class="up-pct" id="upPct">0%</div>
+        </div>
+
+        <!-- Resume button (shown when autoplay blocked) -->
+        <button id="resumeBtn" class="hidden"><span id="resumeInfo">▶ Resume</span></button>
+      </div><!-- end videoWrap -->
+
+      <!-- CONTROLS -->
+      <div id="controls">
+        <!-- Scrubber row -->
+        <div id="scrubWrap">
+          <span id="scrubTime" class="scrubTime">0:00:00</span>
+          <div id="scrubTrack"
+            onclick="onScrubClick(event)"
+            onmousemove="onScrubHover(event)"
+            onmouseleave="document.getElementById('scrubHover').style.display='none'">
+            <div id="scrubBuf"></div>
+            <div id="scrubFill"></div>
+            <div id="scrubThumb"></div>
+            <div id="scrubHover"></div>
+          </div>
+          <span id="scrubRemain" class="scrubTime">-0:00:00</span>
+        </div>
+
+        <!-- Buttons row -->
+        <div id="ctrlRow">
+          <!-- Transport -->
+          <button class="cb" onclick="seekBy(-10)" title="Back 10s (←)">⏮10</button>
+          <button class="cb" onclick="stepFrame(-1)" title="Prev Frame (,)">&lt;|</button>
+          <button class="cb cb-play" id="btnPlay" onclick="togglePlay()" title="Play/Pause (Space)">
+            <span id="playIcon">▶</span>
+          </button>
+          <button class="cb" onclick="stepFrame(1)" title="Next Frame (.)"  >|&gt;</button>
+          <button class="cb" onclick="seekBy(10)" title="Fwd 10s (→)">10⏭</button>
+          <button class="cb cb-stop" onclick="stopPlayback()" title="Stop (S)">⏹</button>
+
+          <div class="cs"></div>
+
+          <!-- Volume -->
+          <button class="cb" id="btnMute" onclick="toggleMute()" title="Mute (M)">
+            <span id="muteIcon">🔊</span>
+          </button>
+          <div class="vol-wrap">
+            <input type="range" id="volSlider" min="0" max="10" step="0.05" value="1"
+              oninput="setVol(parseFloat(this.value))">
+            <span id="volPct">100%</span>
+          </div>
+
+          <div class="cs"></div>
+
+          <!-- Loop A-B -->
+          <button class="cb" id="btnLoop" onclick="cycleLoop()" title="A-B Loop (R)">
+            🔁<small id="loopLbl" style="font-size:9px;margin-left:1px">A-B</small>
+          </button>
+
+          <!-- Screen mode -->
+          <button class="cb" onclick="openM('mScreenModes')" title="Screen Modes (V)">📐</button>
+
+          <!-- Subtitle CC button -->
+          <button class="cb" id="btnCC" onclick="toggleSubPanel()" title="Subtitles (C)">
+            CC
+            <span id="ccDot" class="hidden" style="position:absolute;top:4px;right:4px;width:6px;height:6px;border-radius:50%;background:var(--ac)"></span>
+          </button>
+
+          <!-- Screenshot -->
+          <button class="cb" onclick="takeSnapshot()" title="Snapshot (T)">📸</button>
+
+          <div class="cs"></div>
+
+          <!-- Badges -->
+          <span class="ctrl-badge" id="speedBadge" onclick="openM('mSettings')" title="Speed ([,])">1x Speed</span>
+          <span class="ctrl-badge" id="modeBadge" onclick="toggleAudioMode()" title="Audio Mode (N)">🔈 Normal</span>
+          <span class="ctrl-badge" id="qualBadge" onclick="openM('mAudio')" title="Quality">Auto</span>
+
+          <div class="ctrl-gap"></div>
+
+          <!-- Brightness quick -->
+          <span style="font-size:13px;color:var(--text2)">☀</span>
+          <input type="range" id="slBright" min="0" max="200" value="100" style="width:70px"
+            oninput="BP.v.bright=+this.value;applyFilters()">
+
+          <div class="cs"></div>
+
+          <!-- Fullscreen -->
+          <button class="cb" onclick="toggleFullscreen()" title="Fullscreen (F)">
+            <span id="fsIcon">⛶</span>
+          </button>
+        </div>
+      </div><!-- end controls -->
+    </div><!-- end stage -->
+
+    <!-- RIGHT PLAYLIST PANEL -->
+    <div id="playlistPanel">
+      <div class="pp-header">
+        <span class="pp-title">📋 Queue</span>
+        <span class="pp-count" id="ppCount">0 items</span>
+        <span class="pp-close" onclick="togglePlaylistPanel()">✕</span>
+      </div>
+      <div class="pp-search">
+        <input type="text" placeholder="🔍 Search playlist..." oninput="filterPlaylist(this.value)">
+      </div>
+      <div class="pp-list" id="ppList">
+        <div class="pp-empty">Upload movies to build your playlist.<br>Files are saved on the server.<br>They persist across refreshes!</div>
+      </div>
+    </div>
+
+  </div><!-- end body -->
+</div><!-- end shell -->
+
+<!-- RIGHT-CLICK CONTEXT MENU -->
+<div id="ctxMenu">
+  <button class="ctx-item" onclick="ctxAction(togglePlay)"><span class="ctx-ic">⏯</span> Play / Pause</button>
+  <button class="ctx-item" onclick="ctxAction(stopPlayback)"><span class="ctx-ic">⏹</span> Stop</button>
+  <button class="ctx-item" onclick="ctxAction(()=>seekBy(-10))"><span class="ctx-ic">⏪</span> Back 10s</button>
+  <button class="ctx-item" onclick="ctxAction(()=>seekBy(10))"><span class="ctx-ic">⏩</span> Forward 10s</button>
+  <div class="ctx-sep"></div>
+  <button class="ctx-item" onclick="ctxAction(toggleMute)"><span class="ctx-ic">🔇</span> Toggle Mute</button>
+  <button class="ctx-item" onclick="ctxAction(cycleLoop)"><span class="ctx-ic">🔁</span> A-B Loop</button>
+  <div class="ctx-sep"></div>
+  <button class="ctx-item" onclick="ctxAction(toggleFullscreen)"><span class="ctx-ic">⛶</span> Fullscreen</button>
+  <button class="ctx-item" onclick="ctxAction(togglePiP)"><span class="ctx-ic">🪟</span> Picture-in-Picture</button>
+  <button class="ctx-item" onclick="ctxAction(takeSnapshot)"><span class="ctx-ic">📸</span> Snapshot</button>
+  <div class="ctx-sep"></div>
+  <button class="ctx-item" onclick="ctxAction(()=>openM('mLibrary'))"><span class="ctx-ic">🎬</span> Library</button>
+  <button class="ctx-item" onclick="ctxAction(()=>openM('mSettings'))"><span class="ctx-ic">⚙️</span> Settings</button>
+  <button class="ctx-item" onclick="ctxAction(()=>openM('mKeys'))"><span class="ctx-ic">⌨️</span> Keyboard Help</button>
+</div>
+
+
+<!-- ================================================================
+     MODALS
+     ================================================================ -->
+
+<!-- Library -->
+<div id="mLibrary" class="modal-back hidden" onclick="onBdClick(event,'mLibrary')">
+  <div class="modal modal-xl">
+    <div class="modal-hdr">
+      <span class="mh-icon">🎬</span><h3>Media Library</h3>
+      <button class="modal-x" onclick="closeM('mLibrary')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:0">
+      <div id="libraryGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;padding:16px">
+        <div style="grid-column:1/-1;text-align:center;color:var(--text3);padding:40px">Upload a movie to see it here!</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Inspector -->
+<div id="mInspector" class="modal-back hidden" onclick="onBdClick(event,'mInspector')">
+  <div class="modal">
+    <div class="modal-hdr"><span class="mh-icon">🔍</span><h3>Movie Inspector</h3><button class="modal-x" onclick="closeM('mInspector')">✕</button></div>
+    <div class="modal-body">
+      <div class="insp-hero">
+        <img id="inspPoster" src="" alt="Poster" class="insp-poster">
+        <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+          <div id="inspTitle" style="font-size:18px;font-weight:700">No Media</div>
+          <div id="inspYear"  style="font-size:12px;color:var(--text2)">—</div>
+          <div id="inspGenre" style="display:inline-block;padding:3px 10px;background:var(--ac-grad);color:#000;font-size:11px;font-weight:700;border-radius:10px;align-self:flex-start">Genre</div>
+        </div>
+      </div>
+      <div id="inspPlot" style="font-size:12px;color:var(--text2);line-height:1.7"></div>
+      <div class="ir"><span class="ik">Type</span><span class="iv" id="inspType">—</span></div>
+      <div class="ir"><span class="ik">Filename</span><span class="iv" id="inspFile">—</span></div>
+      <div class="ir"><span class="ik">File Size</span><span class="iv" id="inspSize">—</span></div>
+      <div class="ir"><span class="ik">Resolution</span><span class="iv" id="inspRes">—</span></div>
+      <div class="ir"><span class="ik">Duration</span><span class="iv" id="inspDur">—</span></div>
+      <div class="ir"><span class="ik">Bitrate</span><span class="iv" id="inspBit">—</span></div>
+      <div class="ir"><span class="ik">Stored On</span><span class="iv" id="inspStore">—</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- Screen Modes -->
+<div id="mScreenModes" class="modal-back hidden" onclick="onBdClick(event,'mScreenModes')">
+  <div class="modal modal-lg">
+    <div class="modal-hdr"><span class="mh-icon">📐</span><h3>Screen Modes</h3><button class="modal-x" onclick="closeM('mScreenModes')">✕</button></div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--text2)">Choose how the video fills your screen. Each mode adjusts the aspect ratio and display style.</p>
+      <div class="spm-g">
+        <div class="spm-card" onclick="setMode('fit');closeM('mScreenModes')"><div class="spm-icon">📱</div><div class="spm-name">Fit Screen</div><div class="spm-desc">Video fits inside. Black bars may appear.</div></div>
+        <div class="spm-card" onclick="setMode('theater');closeM('mScreenModes')"><div class="spm-icon">🖥</div><div class="spm-name">Theater</div><div class="spm-desc">Stretches to fill browser window width.</div></div>
+        <div class="spm-card" onclick="toggleFullscreen();closeM('mScreenModes')"><div class="spm-icon">⛶</div><div class="spm-name">Fullscreen</div><div class="spm-desc">Takes over your whole monitor. Press Esc to exit.</div></div>
+        <div class="spm-card" onclick="togglePiP();closeM('mScreenModes')"><div class="spm-icon">🪟</div><div class="spm-name">Picture-in-Picture</div><div class="spm-desc">Floats in a small corner window.</div></div>
+        <div class="spm-card" onclick="setMode('fill');closeM('mScreenModes')"><div class="spm-icon">🔎</div><div class="spm-name">Fill &amp; Zoom</div><div class="spm-desc">Fills screen fully. Edges may crop.</div></div>
+        <div class="spm-card" onclick="setMode('21:9');closeM('mScreenModes')"><div class="spm-icon">🎞</div><div class="spm-name">21:9 Cinema Scope</div><div class="spm-desc">Ultrawide movie format. Very wide screen.</div></div>
+        <div class="spm-card" onclick="setMode('imax');closeM('mScreenModes')"><div class="spm-icon">🏟</div><div class="spm-name">IMAX 1.43:1</div><div class="spm-desc">Tall IMAX format. Shows more top and bottom.</div></div>
+        <div class="spm-card" onclick="setMode('9:16');closeM('mScreenModes')"><div class="spm-icon">📲</div><div class="spm-name">9:16 Vertical</div><div class="spm-desc">Portrait mode for phone/social media videos.</div></div>
+        <div class="spm-card" onclick="setMode('1:1');closeM('mScreenModes')"><div class="spm-icon">⬛</div><div class="spm-name">1:1 Square</div><div class="spm-desc">Perfect square. Good for music videos.</div></div>
+        <div class="spm-card" onclick="setMode('32:9');closeM('mScreenModes')"><div class="spm-icon">🌅</div><div class="spm-name">32:9 Superwide</div><div class="spm-desc">Extremely wide. Needs ultrawide monitor.</div></div>
+        <div class="spm-card" onclick="setMode('4:3');closeM('mScreenModes')"><div class="spm-icon">📺</div><div class="spm-name">4:3 Classic TV</div><div class="spm-desc">Old TV ratio. Great for classic movies.</div></div>
+        <div class="spm-card" onclick="setMode('mirror');closeM('mScreenModes')"><div class="spm-icon">🪞</div><div class="spm-name">Mirror Flip</div><div class="spm-desc">Flips video horizontally like a mirror.</div></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+        <span style="font-size:12px;color:var(--text2)">Custom:</span>
+        <input id="cwW" type="number" class="fi" placeholder="W" style="width:70px" value="16">
+        <span>:</span>
+        <input id="cwH" type="number" class="fi" placeholder="H" style="width:70px" value="9">
+        <button class="btn btn-p" onclick="setCustomRatio()">Apply</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 3D/4D/5D -->
+<div id="m3D" class="modal-back hidden" onclick="onBdClick(event,'m3D')">
+  <div class="modal">
+    <div class="modal-hdr"><span class="mh-icon">🌐</span><h3>3D / 4D / 5D Orbit Studio</h3><button class="modal-x" onclick="closeM('m3D')">✕</button></div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--text2)">Rotate the screen in 3D space. While in Orbit mode, drag on the video with your mouse to control direction.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" onclick="setDim('off')">📺 2D Normal</button>
+        <button class="btn" onclick="setDim('3d')">🌐 3D Orbit</button>
+        <button class="btn" onclick="setDim('4d')">✨ 4D Wave</button>
+        <button class="btn" onclick="setDim('5d')">🌀 5D Vortex</button>
+      </div>
+      <div class="sec">Manual Degree Control</div>
+      <div class="sg"><label>Pitch (X)</label><input type="range" id="slPitch" min="-180" max="180" value="0" oninput="BP.v.rx=+this.value;applyOrbit();document.getElementById('sPitch').textContent=this.value+'°';document.getElementById('oPitch').textContent=this.value"><span class="sg-val"><span id="sPitch">0</span>°</span></div>
+      <div class="sg"><label>Yaw (Y)</label><input type="range" id="slYaw" min="-180" max="180" value="0" oninput="BP.v.ry=+this.value;applyOrbit();document.getElementById('sYaw').textContent=this.value+'°';document.getElementById('oYaw').textContent=this.value"><span class="sg-val"><span id="sYaw">0</span>°</span></div>
+      <div class="sg"><label>Roll (Z)</label><input type="range" id="slRoll" min="-180" max="180" value="0" oninput="BP.v.rz=+this.value;applyOrbit();document.getElementById('sRoll').textContent=this.value+'°';document.getElementById('oRoll').textContent=this.value"><span class="sg-val"><span id="sRoll">0</span>°</span></div>
+      <div class="sg"><label>Curvature</label><input type="range" id="slCurv" min="400" max="4000" value="1200" oninput="BP.v.curv=+this.value;applyOrbit()"><span class="sg-val" id="sCurv">1200</span></div>
+      <button class="btn" onclick="reset3D()">🔄 Reset All</button>
+    </div>
+  </div>
+</div>
+
+<!-- Audio Lab -->
+<div id="mAudio" class="modal-back hidden" onclick="onBdClick(event,'mAudio')">
+  <div class="modal modal-lg">
+    <div class="modal-hdr"><span class="mh-icon">🎧</span><h3>Audio Lab</h3><button class="modal-x" onclick="closeM('mAudio')">✕</button></div>
+    <div class="modal-tabs">
+      <div class="m-tab on" onclick="switchTab(this,'atVolume')">Volume</div>
+      <div class="m-tab" onclick="switchTab(this,'atMode')">Mode</div>
+      <div class="m-tab" onclick="switchTab(this,'atQuality')">Quality</div>
+      <div class="m-tab" onclick="switchTab(this,'atFilters')">Filters</div>
+    </div>
+    <div class="modal-body">
+      <div id="atVolume" class="m-pane on">
+        <div class="vol-big" id="volBig">100%</div>
+        <input type="range" id="volBigSlider" min="0" max="10" step="0.05" value="1" style="width:100%"
+          oninput="setVol(parseFloat(this.value))">
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <button class="btn" onclick="setVol(0.5)">50%</button>
+          <button class="btn" onclick="setVol(1)">100%</button>
+          <button class="btn" onclick="setVol(2)">200%</button>
+          <button class="btn" onclick="setVol(3)">300%</button>
+          <button class="btn" onclick="setVol(5)">500%</button>
+          <button class="btn btn-p" onclick="setVol(10)">1000% 🔥</button>
+        </div>
+      </div>
+      <div id="atMode" class="m-pane">
+        <div class="sec">Audio Mode</div>
+        <div style="display:flex;gap:12px">
+          <button class="btn" id="btnNormal" onclick="setAudioMode('normal')">🔈 Normal Mode</button>
+          <button class="btn" id="btnHeadphones" onclick="setAudioMode('headphones')">🎧 Headphones Mode</button>
+        </div>
+        <p style="font-size:12px;color:var(--text2)">Headphones mode applies enhanced stereo separation and bass response for better earphone listening.</p>
+      </div>
+      <div id="atQuality" class="m-pane">
+        <div class="sec">Video Quality Simulation</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <button class="btn" data-qual="auto"  onclick="setQual('auto')">Auto</button>
+          <button class="btn" data-qual="4k"    onclick="setQual('4k')">4K</button>
+          <button class="btn" data-qual="1080p" onclick="setQual('1080p')">1080p</button>
+          <button class="btn" data-qual="720p"  onclick="setQual('720p')">720p</button>
+          <button class="btn" data-qual="480p"  onclick="setQual('480p')">480p</button>
+          <button class="btn" data-qual="360p"  onclick="setQual('360p')">360p</button>
+          <button class="btn" data-qual="240p"  onclick="setQual('240p')">240p</button>
+        </div>
+      </div>
+      <div id="atFilters" class="m-pane">
+        <div class="sg"><label>Brightness</label><input type="range" id="slBrightM" min="0" max="200" value="100" oninput="BP.v.bright=+this.value;applyFilters();document.getElementById('vBright').textContent=this.value+'%'"><span class="sg-val" id="vBright">100%</span></div>
+        <div class="sg"><label>Contrast</label><input type="range" id="slContr" min="0" max="200" value="100" oninput="BP.v.contrast=+this.value;applyFilters();document.getElementById('vContr').textContent=this.value+'%'"><span class="sg-val" id="vContr">100%</span></div>
+        <div class="sg"><label>Saturation</label><input type="range" id="slSat" min="0" max="200" value="100" oninput="BP.v.sat=+this.value;applyFilters();document.getElementById('vSat').textContent=this.value+'%'"><span class="sg-val" id="vSat">100%</span></div>
+        <div class="sg"><label>Hue Rotate</label><input type="range" id="slHue" min="0" max="360" value="0" oninput="BP.v.hue=+this.value;applyFilters();document.getElementById('vHue').textContent=this.value+'°'"><span class="sg-val" id="vHue">0°</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Subtitle Studio -->
+<div id="mSubtitle" class="modal-back hidden" onclick="onBdClick(event,'mSubtitle')">
+  <div class="modal modal-xl">
+    <div class="modal-hdr"><span class="mh-icon">💬</span><h3>Subtitle Studio</h3><button class="modal-x" onclick="closeM('mSubtitle')">✕</button></div>
+    <div class="modal-tabs">
+      <div class="m-tab on" onclick="switchTab(this,'stFonts')">Fonts (30+)</div>
+      <div class="m-tab" onclick="switchTab(this,'stColors')">Colors (40+)</div>
+      <div class="m-tab" onclick="switchTab(this,'stStyle')">Style</div>
+      <div class="m-tab" onclick="switchTab(this,'stLoad')">Load File</div>
+    </div>
+    <div class="modal-body">
+      <div id="subPreview" style="background:#111;min-height:60px;display:flex;align-items:center;justify-content:center;border-radius:8px;padding:16px;font-size:20px;color:#fff">Subtitle Preview Text</div>
+      <div id="stFonts" class="m-pane on">
+        <div class="sec">Choose Subtitle Font (30+ Fonts)</div>
+        <div id="subFontGrid"></div>
+      </div>
+      <div id="stColors" class="m-pane">
+        <div class="sec">Text Color (40+ Colors)</div>
+        <div id="subColorGrid"></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+          <span style="font-size:12px;color:var(--text2)">Custom:</span>
+          <input type="color" id="subColorPicker" value="#ffffff" oninput="BP.s.color=this.value;applySubStyle()">
+        </div>
+        <div class="sec">Background Color</div>
+        <div id="subBgGrid"></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+          <span style="font-size:12px;color:var(--text2)">Custom BG:</span>
+          <input type="color" id="subBgPicker" value="#000000" oninput="BP.s.bg=this.value;applySubStyle()">
+        </div>
+      </div>
+      <div id="stStyle" class="m-pane">
+        <div class="sg"><label>Font Size</label><input type="range" id="slSubSize" min="12" max="72" value="24" oninput="BP.s.size=+this.value;applySubStyle();document.getElementById('vSubSize').textContent=this.value+'px'"><span class="sg-val" id="vSubSize">24px</span></div>
+        <div class="sg"><label>Opacity</label><input type="range" id="slSubOp" min="0" max="1" step="0.05" value="0.85" oninput="BP.s.opacity=+this.value;applySubStyle();document.getElementById('vSubOp').textContent=Math.round(+this.value*100)+'%'"><span class="sg-val" id="vSubOp">85%</span></div>
+        <div class="sg"><label>Offset (s)</label><input type="range" id="slSubOff" min="-10" max="10" step="0.1" value="0" oninput="BP.s.offset=+this.value;document.getElementById('vSubOff').textContent=(+this.value>0?'+':'')+this.value+'s'"><span class="sg-val" id="vSubOff">0s</span></div>
+        <div style="display:flex;gap:8px"><button class="btn btn-p" onclick="toggleSubs()">Toggle Subtitles</button><button class="btn" onclick="clearSubs()">Clear File</button></div>
+      </div>
+      <div id="stLoad" class="m-pane">
+        <div class="sec">Load Subtitle File</div>
+        <label class="btn btn-p" style="cursor:pointer;display:inline-block">📂 Load SRT / VTT / ASS<input type="file" accept=".srt,.vtt,.ass" style="display:none" onchange="loadSubFile(this)"></label>
+        <div id="subFileInfo" style="font-size:12px;color:var(--text2)">No subtitle file loaded</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Clip Downloader -->
+<div id="mClip" class="modal-back hidden" onclick="onBdClick(event,'mClip')">
+  <div class="modal">
+    <div class="modal-hdr"><span class="mh-icon">✂️</span><h3>Favourite Scene Clip</h3><button class="modal-x" onclick="closeM('mClip')">✕</button></div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--text2)">Set a Start (A) and End (B) point, then download as a .webm clip. The video must be playing during recording.</p>
+      <div class="clip-row">
+        <div class="clip-box"><div class="clip-lbl">Start (A)</div><div class="clip-time" id="clipA">—</div></div>
+        <div class="clip-box"><div class="clip-lbl">End (B)</div><div class="clip-time" id="clipB">—</div></div>
+      </div>
+      <div class="clip-box" style="margin-top:8px"><div class="clip-lbl">Clip Duration</div><div class="clip-time" id="clipDur">—</div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-p" onclick="setClipA()">📍 Set Start (A)</button>
+        <button class="btn btn-p" onclick="setClipB()">📍 Set End (B)</button>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" id="btnDownClip" onclick="downloadClip()" style="border-color:var(--success);color:var(--success)" disabled>⬇ Download Clip</button>
+        <button class="btn btn-d" onclick="clearClip()">🗑 Clear</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Appearance Studio -->
+<div id="mAppearance" class="modal-back hidden" onclick="onBdClick(event,'mAppearance')">
+  <div class="modal modal-xl">
+    <div class="modal-hdr"><span class="mh-icon">🎨</span><h3>Appearance Studio</h3><button class="modal-x" onclick="closeM('mAppearance')">✕</button></div>
+    <div class="modal-tabs">
+      <div class="m-tab on" onclick="switchTab(this,'apThemes')">Themes</div>
+      <div class="m-tab" onclick="switchTab(this,'apAccent')">Accent Color</div>
+      <div class="m-tab" onclick="switchTab(this,'apFrame')">Frame Color</div>
+      <div class="m-tab" onclick="switchTab(this,'apShape')">Screen Shape</div>
+    </div>
+    <div class="modal-body">
+      <!-- Themes -->
+      <div id="apThemes" class="m-pane on">
+        <div class="g4">
+          <button class="theme-btn" onclick="applyTheme('#06b6d4','#818cf8','#08090f')"><div class="t-dot" style="background:#06b6d4"></div>Cyber Cyan</button>
+          <button class="theme-btn" onclick="applyTheme('#c084fc','#a855f7','#0a0515')"><div class="t-dot" style="background:#c084fc"></div>Neon Purple</button>
+          <button class="theme-btn" onclick="applyTheme('#ef4444','#f97316','#100505')"><div class="t-dot" style="background:#ef4444"></div>Crimson Red</button>
+          <button class="theme-btn" onclick="applyTheme('#00ff41','#10b981','#050f05')"><div class="t-dot" style="background:#00ff41"></div>Matrix Green</button>
+          <button class="theme-btn" onclick="applyTheme('#fbbf24','#f59e0b','#100a00')"><div class="t-dot" style="background:#fbbf24"></div>Gold Luxury</button>
+          <button class="theme-btn" onclick="applyTheme('#fb7185','#ec4899','#100508')"><div class="t-dot" style="background:#fb7185"></div>Rose Cinema</button>
+          <button class="theme-btn" onclick="applyTheme('#38bdf8','#bae6fd','#050d14')"><div class="t-dot" style="background:#38bdf8"></div>Ice Arctic</button>
+          <button class="theme-btn" onclick="applyTheme('#fb923c','#f59e0b','#0f0800')"><div class="t-dot" style="background:#fb923c"></div>Sunset Warm</button>
+          <button class="theme-btn" onclick="applyTheme('#2dd4bf','#06b6d4','#020e0d')"><div class="t-dot" style="background:#2dd4bf"></div>Ocean Teal</button>
+          <button class="theme-btn" onclick="applyTheme('#818cf8','#6366f1','#050510')"><div class="t-dot" style="background:#818cf8"></div>Galaxy Indigo</button>
+          <button class="theme-btn" onclick="applyTheme('#a3e635','#84cc16','#050a00')"><div class="t-dot" style="background:#a3e635"></div>Lime Hacker</button>
+          <button class="theme-btn" onclick="applyTheme('#f472b6','#ec4899','#100510')"><div class="t-dot" style="background:#f472b6"></div>Pink Barbie</button>
+          <button class="theme-btn" onclick="applyTheme('#00e5ff','#00b8d9','#020e10')"><div class="t-dot" style="background:#00e5ff"></div>Aqua Neon</button>
+          <button class="theme-btn" onclick="applyTheme('#d97706','#b45309','#0a0600')"><div class="t-dot" style="background:#d97706"></div>Amber Film</button>
+          <button class="theme-btn" onclick="applyTheme('#2563eb','#1d4ed8','#020612')"><div class="t-dot" style="background:#2563eb"></div>Cobalt Blue</button>
+          <button class="theme-btn" onclick="applyTheme('#7c3aed','#6d28d9','#050012')"><div class="t-dot" style="background:#7c3aed"></div>Deep Violet</button>
+          <button class="theme-btn" onclick="applyTheme('#94a3b8','#cbd5e1','#08090b')"><div class="t-dot" style="background:#94a3b8"></div>Silver Chrome</button>
+          <button class="theme-btn" onclick="applyTheme('#f97316','#ea580c','#0f0400')"><div class="t-dot" style="background:#f97316"></div>Neon Orange</button>
+          <button class="theme-btn" onclick="applyTheme('#4ade80','#22c55e','#030f06')"><div class="t-dot" style="background:#4ade80"></div>Emerald</button>
+          <button class="theme-btn" onclick="applyTheme('#e879f9','#d946ef','#0f0012')"><div class="t-dot" style="background:#e879f9"></div>Fuchsia</button>
+          <button class="theme-btn" onclick="applyTheme('#ff6b6b','#ee5a24','#100505')"><div class="t-dot" style="background:#ff6b6b"></div>Tomato</button>
+          <button class="theme-btn" onclick="applyTheme('#ffd32a','#ffa801','#0a0800')"><div class="t-dot" style="background:#ffd32a"></div>Bright Yellow</button>
+          <button class="theme-btn" onclick="applyTheme('#0be881','#05c46b','#021208')"><div class="t-dot" style="background:#0be881"></div>Neon Mint</button>
+          <button class="theme-btn" onclick="applyTheme('#0fbcf9','#48dbfb','#021014')"><div class="t-dot" style="background:#0fbcf9"></div>Sky Blue</button>
+          <button class="theme-btn" onclick="applyTheme('#f8a5c2','#f78fb3','#100508')"><div class="t-dot" style="background:#f8a5c2"></div>Baby Pink</button>
+          <button class="theme-btn" onclick="applyTheme('#778ca3','#4b6584','#060809')"><div class="t-dot" style="background:#778ca3"></div>Steel Blue</button>
+          <button class="theme-btn" onclick="applyTheme('#fd9644','#e67e22','#0a0500')"><div class="t-dot" style="background:#fd9644"></div>Mango</button>
+          <button class="theme-btn" onclick="applyTheme('#26de81','#20bf6b','#011008')"><div class="t-dot" style="background:#26de81"></div>Jade Green</button>
+          <button class="theme-btn" onclick="applyTheme('#fd79a8','#e84393','#100510')"><div class="t-dot" style="background:#fd79a8"></div>Hot Pink</button>
+          <button class="theme-btn" onclick="applyTheme('#a55eea','#8854d0','#060010')"><div class="t-dot" style="background:#a55eea"></div>Lavender</button>
+          <button class="theme-btn" onclick="applyTheme('#45aaf2','#2d98da','#020810')"><div class="t-dot" style="background:#45aaf2"></div>Cornflower</button>
+          <button class="theme-btn" onclick="applyTheme('#2bcbba','#0fb9b1','#010c0b')"><div class="t-dot" style="background:#2bcbba"></div>Turquoise</button>
+          <button class="theme-btn" onclick="applyTheme('#fc5c65','#eb3b5a','#100304')"><div class="t-dot" style="background:#fc5c65"></div>Flamingo</button>
+          <button class="theme-btn" onclick="applyTheme('#fed330','#f7b731','#0a0800')"><div class="t-dot" style="background:#fed330"></div>Sunflower</button>
+          <button class="theme-btn" onclick="applyTheme('#4b7bec','#3867d6','#020510')"><div class="t-dot" style="background:#4b7bec"></div>Royal Blue</button>
+          <button class="theme-btn" onclick="applyTheme('#ffffff','#e0e0e0','#0a0a0a')"><div class="t-dot" style="background:#fff;border-color:#333"></div>Arctic White</button>
+          <button class="theme-btn" onclick="applyTheme('#d1d8e0','#a5b1c2','#06080a')"><div class="t-dot" style="background:#d1d8e0"></div>Moonlight</button>
+          <button class="theme-btn" onclick="applyTheme('#ff4757','#ff6b81','#100204')"><div class="t-dot" style="background:#ff4757"></div>Valentine</button>
+          <button class="theme-btn" onclick="applyTheme('#7bed9f','#2ed573','#031008')"><div class="t-dot" style="background:#7bed9f"></div>Fresh Green</button>
+          <button class="theme-btn" onclick="applyTheme('#70a1ff','#1e90ff','#020510')"><div class="t-dot" style="background:#70a1ff"></div>Denim</button>
+        </div>
+      </div>
+
+      <!-- Accent color -->
+      <div id="apAccent" class="m-pane">
+        <div class="sec">Global Accent Color — changes ALL highlights, borders, glows</div>
+        <p style="font-size:12px;color:var(--text2)">Pick a custom accent color. This changes the main highlight color across the whole player.</p>
+        <div style="display:flex;align-items:center;gap:14px">
+          <div class="color-preview" id="accentPreview" style="background:var(--ac)"></div>
+          <input type="color" id="accentPicker" value="#06b6d4" oninput="setAccentColor(this.value)">
+          <span style="font-family:var(--mono);font-size:13px" id="accentHex">#06b6d4</span>
+        </div>
+        <div class="sec" style="margin-top:4px">Secondary / Gradient Color</div>
+        <div style="display:flex;align-items:center;gap:14px">
+          <div class="color-preview" id="accent2Preview" style="background:var(--ac2)"></div>
+          <input type="color" id="accent2Picker" value="#818cf8" oninput="setAccent2Color(this.value)">
+          <span style="font-family:var(--mono);font-size:13px" id="accent2Hex">#818cf8</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
+          <button class="btn" onclick="setAccentColor('#06b6d4')">Cyan</button>
+          <button class="btn" onclick="setAccentColor('#818cf8')">Purple</button>
+          <button class="btn" onclick="setAccentColor('#ef4444')">Red</button>
+          <button class="btn" onclick="setAccentColor('#10b981')">Green</button>
+          <button class="btn" onclick="setAccentColor('#fbbf24')">Gold</button>
+          <button class="btn" onclick="setAccentColor('#f472b6')">Pink</button>
+          <button class="btn" onclick="setAccentColor('#38bdf8')">Blue</button>
+          <button class="btn" onclick="setAccentColor('#ffffff')">White</button>
+        </div>
+      </div>
+
+      <!-- Frame color (SEPARATE from accent) -->
+      <div id="apFrame" class="m-pane">
+        <div class="sec">Video Frame Border Color — independent from accent</div>
+        <p style="font-size:12px;color:var(--text2)">The colored border/glow around your video screen. Pick any color you want independently from the accent color.</p>
+        <div style="display:flex;align-items:center;gap:14px">
+          <div class="color-preview" id="frameColorPreview" style="background:var(--frame-color)"></div>
+          <input type="color" id="frameColorPicker" value="#06b6d4" oninput="setFrameColor(this.value)">
+          <span style="font-family:var(--mono);font-size:13px" id="frameColorHex">#06b6d4</span>
+        </div>
+        <div class="sec">Frame Style</div>
+        <div class="g3">
+          <button class="btn" onclick="setFrameStyle('glow')">🌟 Neon Glow</button>
+          <button class="btn" onclick="setFrameStyle('solid')">▪ Solid Border</button>
+          <button class="btn" onclick="setFrameStyle('dashed')">➿ Dashed</button>
+          <button class="btn" onclick="setFrameStyle('double')">🔲 Double Line</button>
+          <button class="btn" onclick="setFrameStyle('thick')">█ Thick Solid</button>
+          <button class="btn" onclick="setFrameStyle('none')">✕ No Frame</button>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">
+          <button class="btn" onclick="setFrameColor('#06b6d4')">Cyan</button>
+          <button class="btn" onclick="setFrameColor('#ffffff')">White</button>
+          <button class="btn" onclick="setFrameColor('#ef4444')">Red</button>
+          <button class="btn" onclick="setFrameColor('#fbbf24')">Gold</button>
+          <button class="btn" onclick="setFrameColor('#10b981')">Green</button>
+          <button class="btn" onclick="setFrameColor('#f472b6')">Pink</button>
+        </div>
+      </div>
+
+      <!-- Screen shape -->
+      <div id="apShape" class="m-pane">
+        <p style="font-size:12px;color:var(--text2)">Pick the shape of your video screen. Click to apply instantly.</p>
+        <div id="shapeGrid" class="g5"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Keyboard Controls -->
+<div id="mKeys" class="modal-back hidden" onclick="onBdClick(event,'mKeys')">
+  <div class="modal modal-lg">
+    <div class="modal-hdr"><span class="mh-icon">⌨️</span><h3>Keyboard Shortcuts</h3><button class="modal-x" onclick="closeM('mKeys')">✕</button></div>
+    <div class="modal-body">
+      <table class="kt">
+        <tr><td>Space / K</td><td>Play / Pause</td></tr>
+        <tr><td>S</td><td>Stop &amp; clear resume</td></tr>
+        <tr><td>← / J</td><td>Seek back 10 seconds</td></tr>
+        <tr><td>→ / L</td><td>Seek forward 10 seconds</td></tr>
+        <tr><td>↑</td><td>Volume up 10%</td></tr>
+        <tr><td>↓</td><td>Volume down 10%</td></tr>
+        <tr><td>M</td><td>Toggle mute</td></tr>
+        <tr><td>F</td><td>Toggle fullscreen</td></tr>
+        <tr><td>V</td><td>Screen modes</td></tr>
+        <tr><td>, (comma)</td><td>Previous frame</td></tr>
+        <tr><td>. (period)</td><td>Next frame</td></tr>
+        <tr><td>[ ]</td><td>Speed down / Speed up</td></tr>
+        <tr><td>N</td><td>Toggle Normal / Headphones mode</td></tr>
+        <tr><td>T</td><td>Take snapshot / screenshot</td></tr>
+        <tr><td>R</td><td>Toggle A-B Loop</td></tr>
+        <tr><td>C</td><td>Subtitle quick panel (at bottom)</td></tr>
+        <tr><td>P</td><td>Playlist panel toggle</td></tr>
+        <tr><td>A</td><td>Audio Lab</td></tr>
+        <tr><td>I</td><td>Movie Inspector</td></tr>
+        <tr><td>B</td><td>Backup &amp; Storage</td></tr>
+        <tr><td>X</td><td>Clip Downloader</td></tr>
+        <tr><td>G</td><td>Appearance Studio</td></tr>
+        <tr><td>Q</td><td>3D / Orbit Studio</td></tr>
+        <tr><td>H / ?</td><td>Keyboard Help (this window)</td></tr>
+        <tr><td>1</td><td>Speed 1x (normal)</td></tr>
+        <tr><td>2</td><td>Speed 2x</td></tr>
+        <tr><td>3</td><td>Speed 0.5x</td></tr>
+        <tr><td>O</td><td>Open file browser</td></tr>
+        <tr><td>Esc</td><td>Close any open modal / panel</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Profile -->
+<div id="mProfile" class="modal-back hidden" onclick="onBdClick(event,'mProfile')">
+  <div class="modal">
+    <div class="modal-hdr"><span class="mh-icon">👤</span><h3>My Profile</h3><button class="modal-x" onclick="closeM('mProfile')">✕</button></div>
+    <div class="modal-body">
+      <div class="av-wrap">
+        <img id="avPrev" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='36' r='24' fill='%2306b6d4'/%3E%3Ccircle cx='50' cy='96' r='34' fill='%2306b6d4'/%3E%3C/svg%3E" class="av-prev" alt="Avatar">
+        <label class="btn" style="cursor:pointer">📷 Change Photo<input type="file" accept="image/*" style="display:none" onchange="onAvatarChange(this)"></label>
+      </div>
+      <div class="fg"><div class="fl">Display Name</div><input id="pName" class="fi" placeholder="Your name"></div>
+      <div class="fg"><div class="fl">User ID</div><input id="pId" class="fi" readonly style="opacity:.5"></div>
+      <div class="fg"><div class="fl">Bio</div><input id="pBio" class="fi" placeholder="Short bio..."></div>
+      <div class="fg"><div class="fl">Favourite Genre</div>
+        <select id="pGenre" class="fi fi-sel">
+          <option value="Action">Action</option><option value="Comedy">Comedy</option>
+          <option value="Thriller">Thriller</option><option value="Sci-Fi">Sci-Fi</option>
+          <option value="Romance">Romance</option><option value="Horror">Horror</option>
+          <option value="Soundtrack">Soundtrack</option><option value="Documentary">Documentary</option>
+        </select>
+      </div>
+      <div class="sec">Photo Border Style</div>
+      <div id="profileBorderGrid" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:4px"></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:12px;color:var(--text2)">Border Color:</span>
+        <input type="color" value="#06b6d4" oninput="setProfileBorderColor(this.value)">
+        <span style="font-size:12px;color:var(--text2)">Border Width:</span>
+        <input type="range" min="0" max="8" value="3" style="width:80px" oninput="setProfileBorderWidth(this.value)">
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-p" onclick="saveProfile()">💾 Save Profile</button>
+    </div>
+  </div>
+</div>
+
+<!-- Backup & Storage -->
+<div id="mBackup" class="modal-back hidden" onclick="onBdClick(event,'mBackup')">
+  <div class="modal">
+    <div class="modal-hdr"><span class="mh-icon">💾</span><h3>Backup &amp; Storage</h3><button class="modal-x" onclick="closeM('mBackup')">✕</button></div>
+    <div class="modal-body">
+      <div class="ir"><span class="ik">Playlist Items</span><span class="iv" id="bkCount">0</span></div>
+      <div class="ir"><span class="ik">Stored on Server</span><span class="iv" style="color:var(--success)">✓ Local uploads/ folder</span></div>
+      <div class="ir"><span class="ik">Progress (localStorage)</span><span class="iv" style="color:var(--success)">✓ Per browser</span></div>
+      <div class="sec">Export</div>
+      <p style="font-size:12px;color:var(--text2)">Download your playlist metadata and settings as JSON.</p>
+      <button class="btn btn-p" onclick="exportBackup()">⬇ Export Backup JSON</button>
+      <div class="sec">Import</div>
+      <input type="file" accept=".json" class="fi" style="padding:8px" onchange="importBackup(this)">
+      <div class="sec" style="color:var(--danger)">Danger Zone</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-d" onclick="clearPlaylist()">🗑 Clear Playlist</button>
+        <button class="btn btn-d" onclick="clearProgress()">🗑 Clear Resume Progress</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings -->
+<div id="mSettings" class="modal-back hidden" onclick="onBdClick(event,'mSettings')">
+  <div class="modal modal-xl">
+    <div class="modal-hdr"><span class="mh-icon">⚙️</span><h3>Settings</h3><button class="modal-x" onclick="closeM('mSettings')">✕</button></div>
+    <div class="modal-tabs">
+      <div class="m-tab on" onclick="switchTab(this,'stPlayback')">Playback</div>
+      <div class="m-tab" onclick="switchTab(this,'stDeveloper')">Developer</div>
+      <div class="m-tab" onclick="switchTab(this,'stAbout')">About</div>
+    </div>
+    <div class="modal-body">
+      <!-- Playback -->
+      <div id="stPlayback" class="m-pane on">
+        <div class="sec">Playback Speed</div>
+        <div style="display:flex;flex-wrap:wrap;gap:7px">
+          <button class="btn" data-spd="0.25" onclick="setSpd(0.25)">0.25x</button>
+          <button class="btn" data-spd="0.5"  onclick="setSpd(0.5)">0.5x</button>
+          <button class="btn" data-spd="0.75" onclick="setSpd(0.75)">0.75x</button>
+          <button class="btn on" data-spd="1"    onclick="setSpd(1)">1x</button>
+          <button class="btn" data-spd="1.25" onclick="setSpd(1.25)">1.25x</button>
+          <button class="btn" data-spd="1.5"  onclick="setSpd(1.5)">1.5x</button>
+          <button class="btn" data-spd="1.75" onclick="setSpd(1.75)">1.75x</button>
+          <button class="btn" data-spd="2"    onclick="setSpd(2)">2x</button>
+          <button class="btn" data-spd="2.5"  onclick="setSpd(2.5)">2.5x</button>
+          <button class="btn" data-spd="3"    onclick="setSpd(3)">3x</button>
+          <button class="btn" data-spd="4"    onclick="setSpd(4)">4x</button>
+          <button class="btn" data-spd="5"    onclick="setSpd(5)">5x</button>
+          <button class="btn" data-spd="6"    onclick="setSpd(6)">6x</button>
+        </div>
+        <div class="sec">Auto-Resume</div>
+        <p style="font-size:12px;color:var(--text2)">Beta Player automatically resumes where you left off when you refresh the page. No popup shown — just plays silently.</p>
+        <div class="sec">Sharing Note</div>
+        <p style="font-size:12px;color:var(--text2)">When you share the URL with a friend, they will see a fresh player (their own localStorage). Movies are stored on the server and can be accessed by anyone on the same network.</p>
+      </div>
+
+      <!-- Developer -->
+      <div id="stDeveloper" class="m-pane">
+        <div class="dev-card">
+          <div class="dev-av">👨‍💻</div>
+          <div>
+            <div class="dev-nm">Surendhar S</div>
+            <div class="dev-rl">Frontend Developer · UI/UX Designer</div>
+            <div class="dev-cl">
+              B.E. Computer Science Engineering (CSE)<br>
+              Batch: 2025–2029<br>
+              Bannari Amman Institute of Technology<br>
+              Erode, Tamil Nadu, India
+            </div>
+          </div>
+        </div>
+        <div class="dev-bio">
+          A passionate frontend developer and UI/UX enthusiast pursuing B.E. CSE at Bannari Amman Institute of Technology, one of the premier engineering institutions in Tamil Nadu.
+          <br><br>
+          <strong>BETA PLAYER</strong> is my flagship personal project — a fully-featured, immersive local video player built entirely with vanilla HTML5, CSS3, and JavaScript (ES6+). No external frameworks. No libraries. Pure raw code and creativity.
+          <br><br>
+          Through this project, I've deeply explored: IndexedDB &amp; server-side file storage, Web Audio API for real-time audio processing, Canvas API for spectrum visualizer, MediaRecorder API for scene clip download, CSS 3D transforms for orbit/4D/5D effects, Range-based HTTP streaming for large video files, and advanced keyboard event systems.
+        </div>
+        <div class="dev-tags">
+          <span class="dev-tag">HTML5</span><span class="dev-tag">CSS3</span>
+          <span class="dev-tag">Vanilla JS</span><span class="dev-tag">Node.js</span>
+          <span class="dev-tag">Web Audio API</span><span class="dev-tag">Canvas API</span>
+          <span class="dev-tag">MediaRecorder</span><span class="dev-tag">IndexedDB</span>
+          <span class="dev-tag">HTTP Range Streaming</span><span class="dev-tag">CSS 3D</span>
+        </div>
+        <div class="ir"><span class="ik">Project</span><span class="iv">Beta Player v2.0</span></div>
+        <div class="ir"><span class="ik">Institution</span><span class="iv">Bannari Amman Institute of Technology</span></div>
+        <div class="ir"><span class="ik">Course</span><span class="iv">B.E. Computer Science Engineering</span></div>
+        <div class="ir"><span class="ik">Batch</span><span class="iv">2025–2029 (2nd Year as of 2026)</span></div>
+        <div class="ir"><span class="ik">Location</span><span class="iv">Erode, Tamil Nadu, India</span></div>
+      </div>
+
+      <!-- About -->
+      <div id="stAbout" class="m-pane">
+        <div class="ir"><span class="ik">App Name</span><span class="iv">Beta Player</span></div>
+        <div class="ir"><span class="ik">Version</span><span class="iv">2.0.0</span></div>
+        <div class="ir"><span class="ik">Architecture</span><span class="iv">Vanilla HTML · CSS · JS + Node.js</span></div>
+        <div class="ir"><span class="ik">Storage</span><span class="iv">Server files + localStorage progress</span></div>
+        <div class="ir"><span class="ik">Port</span><span class="iv">localhost:3000</span></div>
+        <div class="ir"><span class="ik">Sharing</span><span class="iv">Friends get fresh state; movies on server</span></div>
+        <p style="font-size:12px;color:var(--text2);margin-top:12px">
+          β BETA PLAYER is a personal project by Surendhar S. All files you upload are stored in the <code style="color:var(--ac)">uploads/</code> folder on this machine's server. Progress is stored per-browser in localStorage.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Genre / Custom Playlists -->
+<div id="mGenreLists" class="modal-back hidden" onclick="onBdClick(event,'mGenreLists')">
+  <div class="modal modal-xl">
+    <div class="modal-hdr"><span class="mh-icon">📂</span><h3>My Playlists</h3><button class="modal-x" onclick="closeM('mGenreLists')">✕</button></div>
+    <div class="modal-body">
+      <div class="sec">Create New Playlist</div>
+      <div style="display:flex;gap:8px">
+        <input id="newListName" class="fi" placeholder="e.g. Romance, Action, Fav Scenes..." style="flex:1">
+        <button class="btn btn-p" onclick="createGenreList($('newListName').value);$('newListName').value=''">+ Create</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        <button class="btn" onclick="createGenreList('💕 Romance')">💕 Romance</button>
+        <button class="btn" onclick="createGenreList('💥 Action')">💥 Action</button>
+        <button class="btn" onclick="createGenreList('😂 Comedy')">😂 Comedy</button>
+        <button class="btn" onclick="createGenreList('🎭 Thriller')">🎭 Thriller</button>
+        <button class="btn" onclick="createGenreList('🚀 Sci-Fi')">🚀 Sci-Fi</button>
+        <button class="btn" onclick="createGenreList('👻 Horror')">👻 Horror</button>
+        <button class="btn" onclick="createGenreList('⭐ Favourites')">⭐ Favourites</button>
+        <button class="btn" onclick="createGenreList('🕐 Watch Later')">🕐 Watch Later</button>
+        <button class="btn" onclick="createGenreList('🏆 Top Picks')">🏆 Top Picks</button>
+      </div>
+      <div class="sec">Your Playlists</div>
+      <div id="glContainer"><div style="text-align:center;color:var(--text3);padding:32px">No playlists yet. Create one above!</div></div>
+    </div>
+  </div>
+</div>
+
+<script src="app.js" charset="utf-8"></script>
+</body>
+</html>
