@@ -25,8 +25,9 @@
 <!-- ================================================================
      ONBOARDING (first time)
      ================================================================ -->
-<div id="onboardingOverlay" class="hidden">
-  <div class="ob-box">
+<div id="onboardingOverlay" class="hidden" onclick="if(event.target===this)dismissOnboarding()">
+  <div class="ob-box" style="position:relative">
+    <button class="modal-x" onclick="dismissOnboarding()" style="position:absolute;top:14px;right:16px;font-size:18px;color:var(--text3);cursor:pointer;background:none;border:none">✕</button>
     <div class="ob-brand">
       <div class="ob-logo">β BETA PLAYER</div>
       <div class="ob-sub">First Time Setup</div>
@@ -57,7 +58,10 @@
       </select>
     </div>
     <div id="obError" class="ob-err"></div>
-    <button class="ob-submit" onclick="submitOnboarding()">Enter Beta Player →</button>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="ob-submit" style="flex:1" onclick="submitOnboarding()">Enter Beta Player →</button>
+      <button class="btn" style="padding:10px 18px" onclick="dismissOnboarding()">Skip</button>
+    </div>
   </div>
 </div>
 
@@ -219,6 +223,9 @@
         <div id="subQuickPanel" class="hidden">
           <span class="sqp-title">💬 Subtitle</span>
           <span class="sqp-current" id="sqpCurrent">None loaded</span>
+          <select id="sqpInbuildSel" class="fi fi-sel" style="padding:4px 8px;font-size:11px;max-width:160px;display:none" onchange="selectInbuildSubTrack(+this.value)">
+            <option value="-1">In-built Tracks (0)</option>
+          </select>
           <div class="sqp-actions">
             <label class="btn" style="cursor:pointer;padding:5px 12px;font-size:11px">
               Load SRT
@@ -226,6 +233,7 @@
             </label>
             <button class="btn" style="padding:5px 12px;font-size:11px" onclick="clearSubs()">Clear</button>
             <button class="btn" style="padding:5px 12px;font-size:11px" onclick="toggleSubs()">Toggle</button>
+            <button class="btn" style="padding:5px 12px;font-size:11px" onclick="openM('mSubtitle')">Settings</button>
             <button class="btn btn-d" style="padding:5px 12px;font-size:11px" onclick="hideSubPanel()">✕</button>
           </div>
         </div>
@@ -522,6 +530,7 @@
       <div class="m-tab on" onclick="switchTab(this,'stFonts')">Fonts (30+)</div>
       <div class="m-tab" onclick="switchTab(this,'stColors')">Colors (40+)</div>
       <div class="m-tab" onclick="switchTab(this,'stStyle')">Style</div>
+      <div class="m-tab" onclick="switchTab(this,'stInbuild')">In-built Subtitles</div>
       <div class="m-tab" onclick="switchTab(this,'stLoad')">Load File</div>
     </div>
     <div class="modal-body">
@@ -550,6 +559,13 @@
         <div class="sg"><label>Offset (s)</label><input type="range" id="slSubOff" min="-10" max="10" step="0.1" value="0" oninput="BP.s.offset=+this.value;document.getElementById('vSubOff').textContent=(+this.value>0?'+':'')+this.value+'s'"><span class="sg-val" id="vSubOff">0s</span></div>
         <div style="display:flex;gap:8px"><button class="btn btn-p" onclick="toggleSubs()">Toggle Subtitles</button><button class="btn" onclick="clearSubs()">Clear File</button></div>
       </div>
+      <div id="stInbuild" class="m-pane">
+        <div class="sec">In-built Subtitle Tracks (from Movie File)</div>
+        <p style="font-size:12px;color:var(--text2)">Movies downloaded from Telegram, MKV, or MP4 often have built-in subtitle tracks. Select one below to play automatically.</p>
+        <div id="inbuildTrackList" style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+          <div style="color:var(--text3);font-size:12px">No in-built subtitle tracks detected in the current video.</div>
+        </div>
+      </div>
       <div id="stLoad" class="m-pane">
         <div class="sec">Load Subtitle File</div>
         <label class="btn btn-p" style="cursor:pointer;display:inline-block">📂 Load SRT / VTT / ASS<input type="file" accept=".srt,.vtt,.ass" style="display:none" onchange="loadSubFile(this)"></label>
@@ -564,18 +580,28 @@
   <div class="modal">
     <div class="modal-hdr"><span class="mh-icon">✂️</span><h3>Favourite Scene Clip</h3><button class="modal-x" onclick="closeM('mClip')">✕</button></div>
     <div class="modal-body">
-      <p style="font-size:12px;color:var(--text2)">Set a Start (A) and End (B) point, then download as a .webm clip. The video must be playing during recording.</p>
+      <p style="font-size:12px;color:var(--text2)">Set a Start (A) and End (B) point, then download your clip (maximum 10 minutes). Recording captures live audio and video directly to a local webm/mp4 file.</p>
       <div class="clip-row">
         <div class="clip-box"><div class="clip-lbl">Start (A)</div><div class="clip-time" id="clipA">—</div></div>
         <div class="clip-box"><div class="clip-lbl">End (B)</div><div class="clip-time" id="clipB">—</div></div>
       </div>
-      <div class="clip-box" style="margin-top:8px"><div class="clip-lbl">Clip Duration</div><div class="clip-time" id="clipDur">—</div></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div class="clip-box" style="margin-top:8px"><div class="clip-lbl">Clip Duration (Max 10 min)</div><div class="clip-time" id="clipDur">—</div></div>
+      <div id="clipProgressWrap" class="hidden" style="margin-top:10px;background:var(--bg3);padding:10px;border-radius:8px;border:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600;margin-bottom:6px">
+          <span id="clipProgLabel" style="color:var(--danger)">🔴 Recording clip...</span>
+          <span id="clipProgPct" style="color:var(--ac)">0%</span>
+        </div>
+        <div style="height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden">
+          <div id="clipProgFill" style="height:100%;width:0%;background:linear-gradient(90deg,var(--ac),var(--danger));transition:width .2s"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
         <button class="btn btn-p" onclick="setClipA()">📍 Set Start (A)</button>
         <button class="btn btn-p" onclick="setClipB()">📍 Set End (B)</button>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
         <button class="btn" id="btnDownClip" onclick="downloadClip()" style="border-color:var(--success);color:var(--success)" disabled>⬇ Download Clip</button>
+        <button class="btn btn-d" id="btnStopClip" onclick="stopClipEarly()" style="display:none">⏹ Stop &amp; Save</button>
         <button class="btn btn-d" onclick="clearClip()">🗑 Clear</button>
       </div>
     </div>
