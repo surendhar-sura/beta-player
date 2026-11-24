@@ -23,7 +23,8 @@ const BP = {
   loop: { state:0, a:-1, b:-1, active:false },
   media: { url:'', title:'', year:'', genre:'', poster:'', type:'video',
            size:0, filename:'', isLocalDb:false, localId:null },
-  profile: { name:'Surendhar S', uid:'BP-777', bio:'Beta Player User', avatar:'', genre:'Action',
+  screenLocked: false,
+    profile: { name:'Surendhar S', uid:'BP-777', bio:'Beta Player User', avatar:'', genre:'Action',
              registered:true, borderStyle:'circle', borderColor:'#06b6d4', borderWidth:3 },
   playlist: [],
   genreLists: {},
@@ -109,55 +110,95 @@ const LOCAL_DB = {
 // ─── BOOT SEQUENCE (Fast & Clean) ────────────────────────────────────────────
 function runBoot() {
   const visited = localStorage.getItem('bp_visited') === '1';
-  const term = $('bootTerminal');
   const loader = $('betaLoader');
+  const bar = $('bootScanProgress');
+  const txt = $('bootPercentText');
+  const term = $('bootTerminal');
   if (!loader) return;
 
-  if (visited) {
-    // Fast boot for returning users (no annoying delay)
-    if (term) term.innerHTML = '<p class="bl bl-ok">⚡ BETA PLAYER READY</p>';
-    setTimeout(() => dismissLoader(), 350);
-    return;
-  }
+  const totalTime = visited ? 220 : 450; // Ultra-fast boot (0.2s - 0.4s)
+  const startTime = Date.now();
 
-  localStorage.setItem('bp_visited', '1');
-  const lines = [
-    { d:0,   t:'> SYSTEM POWER ON...', c:'bl-dim' },
-    { d:150, t:'> INITIALIZING ENGINE v2.0...', c:'bl-dim' },
-    { d:300, t:'> MOUNTING LOCAL STORAGE...', c:'bl-dim' },
-    { d:450, t:'> INITIALIZING AUDIO PROCESSOR...', c:'bl-dim' },
-    { d:650, t:'▌ BETA PLAYER v2.0 READY', c:'bl-title' }
-  ];
+  const updateProgress = () => {
+    const elapsed = Date.now() - startTime;
+    const pct = Math.min(100, Math.round((elapsed / totalTime) * 100));
 
-  lines.forEach(b => setTimeout(() => {
-    if (!term) return;
-    const p = document.createElement('p');
-    p.className = 'bl ' + b.c; p.textContent = b.t;
-    term.appendChild(p); term.scrollTop = term.scrollHeight;
-  }, b.d));
+    if (bar) bar.style.width = pct + '%';
+    if (txt) txt.textContent = pct + '%';
 
-  setTimeout(() => { const t = $('bootMainTitle'); if (t) t.classList.add('glow-in'); }, 700);
-  setTimeout(() => dismissLoader(), 1200);
+    if (pct < 100) {
+      requestAnimationFrame(updateProgress);
+    } else {
+      localStorage.setItem('bp_visited', '1');
+      if (term) term.innerHTML = '<p class="bl bl-ok">⚡ 100% READY</p>';
+      setTimeout(() => dismissLoader(), 80);
+    }
+  };
+
+  requestAnimationFrame(updateProgress);
 }
 
 function dismissLoader() {
   const l = $('betaLoader'); if (!l) return;
   l.classList.add('loader-exit');
-  setTimeout(() => { l.style.display = 'none'; }, 400);
+  setTimeout(() => { l.style.display = 'none'; }, 200);
 }
 
-// ─── ONBOARDING (Show once, never ask again if already set) ───────────────────
-function checkNewUser() {
-  if (localStorage.getItem('bp_onboarded') === '1') return false;
+// ─── PROFILE SYSTEM WITH LOCAL STORAGE & INDEXEDDB PERSISTENCE ──
+function loadProfile() {
   try {
-    const p = JSON.parse(localStorage.getItem('bp_profile') || 'null');
-    if (p && p.name) {
-      BP.profile = { ...BP.profile, ...p };
-      applyProfileUI();
-      localStorage.setItem('bp_onboarded', '1');
-      return false;
+    const raw = localStorage.getItem('bp_profile');
+    if (raw) {
+      const p = JSON.parse(raw);
+      if (p && typeof p === 'object') {
+        BP.profile = { ...BP.profile, ...p };
+      }
     }
-  } catch {}
+  } catch (e) {
+    console.warn('Error reading bp_profile from localStorage:', e);
+  }
+
+  // Restore from IndexedDB backup if available
+  if (window.indexedDB) {
+    try {
+      const req = indexedDB.open('BetaPlayerLocalDB', 1);
+      req.onupgradeneeded = ev => {
+        const db = ev.target.result;
+        if (!db.objectStoreNames.contains('user_profile')) {
+          db.createObjectStore('user_profile', { keyPath: 'key' });
+        }
+      };
+      req.onsuccess = ev => {
+        const db = ev.target.result;
+        if (db.objectStoreNames.contains('user_profile')) {
+          const tx = db.transaction('user_profile', 'readonly');
+          const getReq = tx.objectStore('user_profile').get('profile');
+          getReq.onsuccess = () => {
+            if (getReq.result && getReq.result.data) {
+              const idb = getReq.result.data;
+              if (idb.avatar && (!BP.profile.avatar || BP.profile.avatar.length < 50)) {
+                BP.profile.avatar = idb.avatar;
+              }
+              if (idb.name) BP.profile.name = idb.name;
+              if (idb.bio)  BP.profile.bio  = idb.bio;
+              applyProfileUI();
+            }
+          };
+        }
+      };
+    } catch (e) {}
+  }
+
+  applyProfileUI();
+}
+
+function checkNewUser() {
+  loadProfile();
+  if (localStorage.getItem('bp_onboarded') === '1') return false;
+  if (BP.profile && BP.profile.name && BP.profile.name !== 'Surendhar S') {
+    localStorage.setItem('bp_onboarded', '1');
+    return false;
+  }
   return true;
 }
 
@@ -176,18 +217,16 @@ function dismissOnboarding() {
 function submitOnboarding() {
   const name = ($('obName').value || '').trim() || 'Beta User';
   BP.profile = {
+    ...BP.profile,
     name,
     uid: 'BP-' + Math.random().toString(36).substr(2, 6).toUpperCase(),
     bio: ($('obBio').value || '').trim() || 'Cinema Lover',
     genre: $('obGenre').value || 'Action',
-    registered: true,
-    avatar: '',
-    borderStyle: 'circle',
-    borderColor: '#06b6d4',
-    borderWidth: 3
+    registered: true
   };
   localStorage.setItem('bp_profile', JSON.stringify(BP.profile));
   localStorage.setItem('bp_onboarded', '1');
+  saveProfileToIndexedDB(BP.profile);
   applyProfileUI();
   dismissOnboarding();
   flash('👋 Welcome to Beta Player, ' + name + '!');
@@ -195,14 +234,15 @@ function submitOnboarding() {
 
 function applyProfileUI() {
   const p = BP.profile;
+  if (!p) return;
   if ($('avatarImg') && p.avatar) $('avatarImg').src = p.avatar;
   if ($('avPrev') && p.avatar)    $('avPrev').src = p.avatar;
-  if ($('pName'))  $('pName').value  = p.name;
-  if ($('pId'))    $('pId').value    = p.uid;
-  if ($('pBio'))   $('pBio').value   = p.bio;
-  if ($('pGenre')) $('pGenre').value = p.genre;
+  if ($('pName'))  $('pName').value  = p.name || 'Surendhar S';
+  if ($('pId'))    $('pId').value    = p.uid || 'BP-777';
+  if ($('pBio'))   $('pBio').value   = p.bio || '';
+  if ($('pGenre') && p.genre) $('pGenre').value = p.genre;
   if (p.borderStyle) setProfileBorder(p.borderStyle);
-  if (p.borderColor) setProfileBorderColor(p.borderColor);
+  applyProfileCustomStyles();
 }
 
 function saveProfile() {
@@ -211,25 +251,176 @@ function saveProfile() {
     ...BP.profile,
     name,
     bio: ($('pBio').value || '').trim(),
-    genre: $('pGenre').value || BP.profile.genre
+    genre: $('pGenre') ? $('pGenre').value : BP.profile.genre
   };
-  localStorage.setItem('bp_profile', JSON.stringify(BP.profile));
-  localStorage.setItem('bp_onboarded', '1');
+  try {
+    localStorage.setItem('bp_profile', JSON.stringify(BP.profile));
+    localStorage.setItem('bp_onboarded', '1');
+  } catch (err) {
+    console.warn('LocalStorage save error:', err);
+  }
+  saveProfileToIndexedDB(BP.profile);
   applyProfileUI();
   closeM('mProfile');
-  flash('PROFILE SAVED ✓');
+  flash('PROFILE SAVED TO LOCAL DEVICE ✓');
 }
 
 function onAvatarChange(input) {
-  const f = input.files[0]; if (!f) return;
-  const r = new FileReader();
-  r.onload = e => {
-    BP.profile.avatar = e.target.result;
-    if ($('avatarImg')) $('avatarImg').src = e.target.result;
-    if ($('avPrev'))    $('avPrev').src = e.target.result;
-    localStorage.setItem('bp_profile', JSON.stringify(BP.profile));
+  const f = input.files[0];
+  if (!f) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      // Compress and scale to max 220px using canvas for lightweight permanent storage
+      const canvas = document.createElement('canvas');
+      const maxDim = 220;
+      let w = img.width;
+      let h = img.height;
+      if (w > h) {
+        if (w > maxDim) { h = Math.round(h * maxDim / w); w = maxDim; }
+      } else {
+        if (h > maxDim) { w = Math.round(w * maxDim / h); h = maxDim; }
+      }
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+      BP.profile.avatar = dataUrl;
+      try {
+        localStorage.setItem('bp_profile', JSON.stringify(BP.profile));
+        localStorage.setItem('bp_onboarded', '1');
+      } catch (err) {
+        console.warn('LocalStorage error saving avatar:', err);
+      }
+      saveProfileToIndexedDB(BP.profile);
+      applyProfileUI();
+      flash('📷 PROFILE PHOTO SAVED TO LOCAL DEVICE ✓');
+    };
+    img.src = e.target.result;
   };
-  r.readAsDataURL(f);
+  reader.readAsDataURL(f);
+}
+
+function saveProfileToIndexedDB(profileData) {
+  if (!window.indexedDB) return;
+  try {
+    const req = indexedDB.open('BetaPlayerLocalDB', 1);
+    req.onupgradeneeded = ev => {
+      const db = ev.target.result;
+      if (!db.objectStoreNames.contains('user_profile')) {
+        db.createObjectStore('user_profile', { keyPath: 'key' });
+      }
+    };
+    req.onsuccess = ev => {
+      const db = ev.target.result;
+      if (db.objectStoreNames.contains('user_profile')) {
+        const tx = db.transaction('user_profile', 'readwrite');
+        tx.objectStore('user_profile').put({ key: 'profile', data: profileData });
+      }
+    };
+  } catch (e) {}
+}
+
+function exportProfileToFile() {
+  const data = JSON.stringify(BP.profile, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const cleanName = (BP.profile.name || 'User').replace(/[^a-zA-Z0-9]/g, '_');
+  a.download = `BetaPlayer_Profile_${cleanName}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  flash('💾 PROFILE EXPORTED AS LOCAL FILE');
+}
+
+function importProfileFromFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const imported = JSON.parse(ev.target.result);
+      if (imported && typeof imported === 'object') {
+        BP.profile = { ...BP.profile, ...imported };
+        try {
+          localStorage.setItem('bp_profile', JSON.stringify(BP.profile));
+          localStorage.setItem('bp_onboarded', '1');
+        } catch(e) {}
+        saveProfileToIndexedDB(BP.profile);
+        applyProfileUI();
+        flash('📂 PROFILE RESTORED FROM FILE ✓');
+      }
+    } catch (err) {
+      alert('Invalid profile JSON file.');
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ─── SCREEN LOCK & LOCAL MOVIE DOWNLOAD ─────────────────────────────
+function toggleScreenLock() {
+  BP.screenLocked = !BP.screenLocked;
+  const shell = $('shell');
+  const floatBtn = $('floatingLockBtn');
+  const btnLock = $('btnLock');
+
+  if (BP.screenLocked) {
+    if (shell) shell.classList.add('screen-locked');
+    if (floatBtn) floatBtn.classList.remove('hidden');
+    if (btnLock) { btnLock.textContent = '🔒'; btnLock.classList.add('active'); }
+    flash('🔒 CONTROLS LOCKED • TAP 🔒 TO UNLOCK');
+  } else {
+    if (shell) shell.classList.remove('screen-locked');
+    if (floatBtn) floatBtn.classList.add('hidden');
+    if (btnLock) { btnLock.textContent = '🔓'; btnLock.classList.remove('active'); }
+    flash('🔓 CONTROLS UNLOCKED');
+  }
+}
+
+function showLockedHint() {
+  flash('🔒 CONTROLS LOCKED • TAP 🔒 BUTTON TO UNLOCK');
+  const floatBtn = $('floatingLockBtn');
+  if (floatBtn) {
+    floatBtn.classList.remove('hidden');
+    floatBtn.style.animation = 'none';
+    floatBtn.offsetHeight;
+    floatBtn.style.animation = 'lockPulse 0.5s ease 3';
+  }
+}
+
+function downloadCurrentMovie() {
+  if (BP.media.file) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(BP.media.file);
+    a.download = BP.media.file.name || 'Movie.mp4';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    flash('💾 DOWNLOADING MOVIE: ' + (BP.media.file.name || 'Movie'));
+    return;
+  }
+
+  const v = $('mainVideo');
+  if (v && v.src) {
+    const a = document.createElement('a');
+    a.href = v.src;
+    a.download = (BP.media.title || 'Movie') + '.mp4';
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    flash('💾 DOWNLOADING MOVIE: ' + (BP.media.title || 'Movie'));
+    return;
+  }
+
+  flash('⚠ NO MOVIE LOADED TO DOWNLOAD');
 }
 
 // ─── TIME & SIZE FORMAT ──────────────────────────────────────────────────────
@@ -489,6 +680,7 @@ function renderPlaylist(filter = '') {
         <div class="pp-meta">${item.year || ''} · ${item.type === 'audio' ? 'Music' : 'Movie'}</div>
         <div class="pp-type">${item.genre || 'Action'}</div>
       </div>
+      <button class="pp-down-btn" onclick="event.stopPropagation();downloadPlaylistItem(${item.id})" title="Download to Local Device" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--ac);padding:4px 6px">⬇</button>
       <span class="pp-del" onclick="event.stopPropagation();removeFromPlaylist(${item.id})">🗑</span>`;
     div.onclick = () => playPlaylistItem(item);
     list.appendChild(div);
@@ -519,6 +711,39 @@ function renderLibrary() {
     c.onclick = () => { playPlaylistItem(item); closeM('mLibrary'); };
     grid.appendChild(c);
   });
+}
+
+
+async function downloadPlaylistItem(id) {
+  const item = BP.playlist.find(p => p.id === id);
+  if (!item) return;
+
+  const localFile = await LOCAL_DB.getFile(id);
+  if (localFile) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(localFile);
+    a.download = localFile.name || (item.title + '.mp4');
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    flash('💾 DOWNLOADING TO LOCAL DEVICE: ' + (localFile.name || item.title));
+    return;
+  }
+
+  if (item.url) {
+    const a = document.createElement('a');
+    a.href = item.url;
+    a.download = (item.title || 'Movie') + '.mp4';
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    flash('💾 DOWNLOADING TO LOCAL DEVICE: ' + item.title);
+    return;
+  }
+
+  flash('⚠ FILE NOT AVAILABLE FOR DOWNLOAD');
 }
 
 async function removeFromPlaylist(id) {
@@ -757,6 +982,7 @@ function toggleAudioMode() { setAudioMode(BP.a.mode === 'normal' ? 'headphones' 
 
 // ─── PLAY / PAUSE / STOP ─────────────────────────────────────────────────────
 function togglePlay() {
+  if (BP.screenLocked) { showLockedHint(); return; }
   if (BP.a.ctx && BP.a.ctx.state === 'suspended') BP.a.ctx.resume().catch(() => {});
   const v = $('mainVideo');
   if (!v.src) return;
@@ -878,6 +1104,7 @@ function onTimeUpdate() {
 }
 
 function seekBy(s) {
+  if (BP.screenLocked) { showLockedHint(); return; }
   const v = $('mainVideo');
   v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + s));
   showHUD(s > 0 ? '⏩' : '⏪', (s > 0 ? '+' : '') + s + 's');
@@ -1867,7 +2094,15 @@ function setupContextMenu() {
     menu.style.cssText = `display:block;left:${Math.min(e.clientX, window.innerWidth - 180)}px;top:${Math.min(e.clientY, window.innerHeight - 320)}px`;
   });
   document.addEventListener('click', () => { if (menu) menu.style.display = 'none'; });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && menu) menu.style.display = 'none'; });
+  document.addEventListener('keydown', e => {
+    if (BP.screenLocked) {
+      if (e.key.toLowerCase() === 'l') {
+        toggleScreenLock();
+      } else {
+        showLockedHint();
+      }
+      return;
+    } if (e.key === 'Escape' && menu) menu.style.display = 'none'; });
 }
 
 function ctxAction(fn) {
@@ -2178,6 +2413,7 @@ async function boot() {
   loadAppearance();
   unlockAudioOnGesture();
 
+  loadProfile();
   const isNew = checkNewUser();
   runBoot();
   if (isNew) {
@@ -2188,6 +2424,7 @@ async function boot() {
   setupScrubber();
   setupOrbit();
   setupClickOverlay();
+  setupAutoHideControls();
   applySubStyle();
   buildShapes();
 
@@ -2235,3 +2472,204 @@ async function boot() {
 }
 
 document.addEventListener('DOMContentLoaded', boot);
+
+
+// ─── AUTO-HIDE CONTROLS & CURSOR IN FULLSCREEN & PLAYBACK (2.5s) ───
+let idleHideTimer = null;
+let isHoveringControls = false;
+
+function setupAutoHideControls() {
+  const stage = $('stage');
+  const shell = $('shell');
+  const controls = $('controls');
+  const v = $('mainVideo');
+
+  if (controls) {
+    controls.addEventListener('mouseenter', () => { isHoveringControls = true; resetIdleTimer(); });
+    controls.addEventListener('mouseleave', () => { isHoveringControls = false; resetIdleTimer(); });
+  }
+
+  const resetIdleTimer = () => {
+    clearTimeout(idleHideTimer);
+    if (stage) stage.classList.remove('idle-hide');
+    if (shell) shell.classList.remove('idle-hide');
+
+    if (!v || v.paused || isHoveringControls || BP.screenLocked) return;
+
+    idleHideTimer = setTimeout(() => {
+      if (v && !v.paused && !isHoveringControls && !BP.screenLocked) {
+        if (stage) stage.classList.add('idle-hide');
+        if (shell) shell.classList.add('idle-hide');
+      }
+    }, 2500);
+  };
+
+  window.addEventListener('mousemove', resetIdleTimer, { passive: true });
+  window.addEventListener('mousedown', resetIdleTimer, { passive: true });
+  window.addEventListener('touchstart', resetIdleTimer, { passive: true });
+  window.addEventListener('keydown', resetIdleTimer, { passive: true });
+
+  if (v) {
+    v.addEventListener('play', resetIdleTimer);
+    v.addEventListener('pause', () => {
+      clearTimeout(idleHideTimer);
+      if (stage) stage.classList.remove('idle-hide');
+      if (shell) shell.classList.remove('idle-hide');
+    });
+  }
+
+  document.addEventListener('fullscreenchange', () => {
+    resetIdleTimer();
+    const isFs = !!document.fullscreenElement;
+    const fsIcon = $('fsIcon');
+    if (fsIcon) fsIcon.textContent = isFs ? '⛶' : '⛶';
+  });
+}
+
+
+// ─── PROFILE STUDIO CUSTOMIZATION ENGINE ─────────────────────────────
+function switchPfTab(tabKey) {
+  const tabs = ['shapes', 'borders', 'sliders', 'filters'];
+  tabs.forEach(t => {
+    const el = $('pfTab' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (el) el.classList.toggle('active', t === tabKey);
+  });
+  $$('.pf-tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('onclick').includes(tabKey));
+  });
+}
+
+const SHAPE_CONFIGS = {
+  circle:    'border-radius:50%',
+  squircle:  'border-radius:35%',
+  rounded16: 'border-radius:16px',
+  rounded8:  'border-radius:8px',
+  leaf1:     'border-radius:0px 50% 0px 50%',
+  leaf2:     'border-radius:50% 0px 50% 0px',
+  teardrop:  'border-radius:50% 50% 50% 0px',
+  pill:      'border-radius:9999px',
+  square:    'border-radius:0px'
+};
+
+const BORDER_CONFIGS = {
+  solid:  'border-style:solid',
+  double: 'border-style:double',
+  dashed: 'border-style:dashed',
+  dotted: 'border-style:dotted',
+  groove: 'border-style:groove',
+  ridge:  'border-style:ridge',
+  neon:   'border-style:solid;box-shadow:0 0 16px var(--profileBorderColor, var(--ac))',
+  cyber:  'border-style:double;box-shadow:0 0 14px #3b82f6',
+  gold:   'border-style:solid;box-shadow:0 4px 14px rgba(245,158,11,0.5)',
+  fire:   'border-style:solid;box-shadow:0 0 16px #ef4444',
+  cosmic: 'border-style:solid;box-shadow:0 0 16px #8b5cf6',
+  holo:   'border-style:double;box-shadow:0 0 18px #06b6d4',
+  prism:  'border-style:solid;box-shadow:0 0 15px rgba(236,72,153,0.6)',
+  none:   'border:none !important;box-shadow:none !important'
+};
+
+const FILTER_CONFIGS = {
+  none:      'none',
+  cinematic: 'contrast(1.15) brightness(1.05) saturate(1.2)',
+  noir:      'grayscale(1) contrast(1.3)',
+  sepia:     'sepia(0.8) contrast(1.1)',
+  cyber:     'hue-rotate(180deg) saturate(1.4)',
+  contrast:  'contrast(1.5)',
+  gold:      'sepia(0.3) saturate(1.5) hue-rotate(-15deg)',
+  cool:      'hue-rotate(90deg) saturate(1.2)'
+};
+
+function setProfileShape(shapeId) {
+  BP.profile.shape = shapeId;
+  $$('.pf-shape-chip').forEach(c => c.classList.toggle('active', c.getAttribute('onclick').includes(shapeId)));
+  applyProfileCustomStyles();
+}
+
+function setProfileBorderDesign(designId) {
+  BP.profile.borderDesign = designId;
+  $$('.pf-border-chip').forEach(c => c.classList.toggle('active', c.getAttribute('onclick').includes(designId)));
+  applyProfileCustomStyles();
+}
+
+function onProfileRadiusSlider(val) {
+  BP.profile.customRadius = val;
+  const lbl = $('lblRadiusVal'); if (lbl) lbl.textContent = val + '%';
+  applyProfileCustomStyles();
+}
+
+function onProfileWidthSlider(val) {
+  BP.profile.borderWidth = +val;
+  const lbl = $('lblWidthVal'); if (lbl) lbl.textContent = val + 'px';
+  applyProfileCustomStyles();
+}
+
+function onProfileGlowSlider(val) {
+  BP.profile.glowIntensity = +val;
+  const lbl = $('lblGlowVal'); if (lbl) lbl.textContent = val + 'px';
+  applyProfileCustomStyles();
+}
+
+function setProfileColor(hex) {
+  BP.profile.borderColor = hex;
+  const inp = $('pfCustomColor'); if (inp) inp.value = hex;
+  applyProfileCustomStyles();
+}
+
+function setProfileFilter(filterId) {
+  BP.profile.filter = filterId;
+  $$('.pf-filter-chip').forEach(c => c.classList.toggle('active', c.getAttribute('onclick').includes(filterId)));
+  applyProfileCustomStyles();
+}
+
+function applyProfileCustomStyles() {
+  const p = BP.profile;
+  const color = p.borderColor || 'var(--ac)';
+  const width = typeof p.borderWidth === 'number' ? p.borderWidth : 3;
+  const glow  = typeof p.glowIntensity === 'number' ? p.glowIntensity : 12;
+  const shape = p.shape || 'circle';
+  const design = p.borderDesign || 'solid';
+  const filter = FILTER_CONFIGS[p.filter] || 'none';
+
+  let radiusCss = SHAPE_CONFIGS[shape] || 'border-radius:50%';
+  if (typeof p.customRadius !== 'undefined') {
+    radiusCss = 'border-radius:' + p.customRadius + '%';
+  }
+
+  let borderStyle = 'solid';
+  let extraShadow = `box-shadow: 0 0 ${glow}px ${color}`;
+
+  if (design === 'none' || width === 0) {
+    borderStyle = 'none';
+    extraShadow = 'box-shadow:none';
+  } else if (design === 'double') {
+    borderStyle = 'double';
+  } else if (design === 'dashed') {
+    borderStyle = 'dashed';
+  } else if (design === 'dotted') {
+    borderStyle = 'dotted';
+  } else if (design === 'groove') {
+    borderStyle = 'groove';
+  } else if (design === 'ridge') {
+    borderStyle = 'ridge';
+  }
+
+  const finalStyle = `${radiusCss};border:${width}px ${borderStyle} ${color};${extraShadow};filter:${filter};width:100%;height:100%;object-fit:cover;`;
+
+  const avPrev = $('avPrev');
+  if (avPrev) avPrev.style.cssText = finalStyle;
+
+  const avatarImg = $('avatarImg');
+  if (avatarImg) avatarImg.style.cssText = finalStyle;
+
+  try {
+    localStorage.setItem('bp_profile', JSON.stringify(BP.profile));
+  } catch(e) {}
+}
+
+function removeAvatarPhoto() {
+  BP.profile.avatar = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='36' r='24' fill='%2306b6d4'/%3E%3Ccircle cx='50' cy='96' r='34' fill='%2306b6d4'/%3E%3C/svg%3E";
+  const avPrev = $('avPrev'); if (avPrev) avPrev.src = BP.profile.avatar;
+  const avatarImg = $('avatarImg'); if (avatarImg) avatarImg.src = BP.profile.avatar;
+  applyProfileCustomStyles();
+  flash('📷 PHOTO RESET TO DEFAULT');
+}

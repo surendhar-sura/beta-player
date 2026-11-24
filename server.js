@@ -124,7 +124,7 @@ const server = http.createServer((req, res) => {
 
   // ── Serve uploaded files with range support (for video seeking) ───────────
   if (url.startsWith('/uploads/')) {
-    const fname = path.basename(url);
+    const fname = path.basename(decodeURIComponent(url));
     const fpath = path.join(UPLOADS_DIR, fname);
     if (!fs.existsSync(fpath)) { res.writeHead(404); res.end('Not found'); return; }
     const stat = fs.statSync(fpath);

@@ -2,8 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>BETA PLAYER v2.0 — by Surendhar S</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -17,7 +19,8 @@
     <div class="bl-core">β</div>
   </div>
   <div id="bootTerminal"></div>
-  <div id="bootScanBar"></div>
+  <div id="bootScanBar"><div id="bootScanProgress" style="width:0%"></div></div>
+  <div id="bootPercentText" style="font-family:var(--mono);font-size:13px;color:var(--ac);font-weight:700;margin-top:6px;letter-spacing:1px">0%</div>
   <div id="bootMainTitle">BETA PLAYER</div>
   <button id="btnSkipLoader" onclick="dismissLoader()">SKIP →</button>
 </div>
@@ -247,6 +250,8 @@
 
         <!-- Resume button (shown when autoplay blocked) -->
         <button id="resumeBtn" class="hidden"><span id="resumeInfo">▶ Resume</span></button>
+        <!-- Floating Lock Button (Shown when screen is locked) -->
+        <button id="floatingLockBtn" class="floating-lock hidden" onclick="toggleScreenLock()" title="Tap to Unlock Screen">🔒</button>
       </div><!-- end videoWrap -->
 
       <!-- CONTROLS -->
@@ -577,61 +582,84 @@
 
 <!-- Clip Downloader -->
 <div id="mClip" class="modal-back hidden" onclick="onBdClick(event,'mClip')">
-  <div class="modal modal-lg">
-    <div class="modal-hdr"><span class="mh-icon">✂️</span><h3>Favourite Scene Clip Downloader</h3><button class="modal-x" onclick="closeM('mClip')">✕</button></div>
-    <div class="modal-body">
-      <p style="font-size:12px;color:var(--text2)">Set or type your Start and End time (maximum 10 minutes). Once set, it automatically downloads your clip!</p>
-
-      <!-- Time editors row -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
-        <div class="clip-box">
-          <div class="clip-lbl">Start (A)</div>
-          <input type="text" id="inpClipStart" class="fi" value="0:00:00" placeholder="0:00:00" style="text-align:center;font-size:16px;font-weight:700;margin-top:4px" onchange="onManualClipChange('start')">
-          <button class="btn btn-p" style="margin-top:6px;width:100%;font-size:11px" onclick="setClipA()">📍 Set Current</button>
-        </div>
-        <div class="clip-box">
-          <div class="clip-lbl">End (B)</div>
-          <input type="text" id="inpClipEnd" class="fi" value="0:00:00" placeholder="0:00:00" style="text-align:center;font-size:16px;font-weight:700;margin-top:4px" onchange="onManualClipChange('end')">
-          <button class="btn btn-p" style="margin-top:6px;width:100%;font-size:11px" onclick="setClipB()">📍 Set Current</button>
-        </div>
-        <div class="clip-box">
-          <div class="clip-lbl">Duration (Max 10m)</div>
-          <input type="text" id="inpClipDur" class="fi" value="0:00:00" placeholder="0:00:00" style="text-align:center;font-size:16px;font-weight:700;margin-top:4px" onchange="onManualClipChange('dur')">
-          <div style="display:flex;gap:4px;margin-top:6px">
-            <button class="btn" style="flex:1;font-size:10px;padding:4px 2px" onclick="addClipDur(5)">+5s</button>
-            <button class="btn" style="flex:1;font-size:10px;padding:4px 2px" onclick="addClipDur(15)">+15s</button>
-            <button class="btn" style="flex:1;font-size:10px;padding:4px 2px" onclick="addClipDur(30)">+30s</button>
-            <button class="btn" style="flex:1;font-size:10px;padding:4px 2px" onclick="addClipDur(60)">+1m</button>
-          </div>
-        </div>
+  <div class="modal clip-modal-card">
+    <div class="clip-modal-hdr">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:22px;color:#f97316">✂️</span>
+        <h3 style="margin:0;font-size:18px;font-weight:700;color:#fff">Favourite Scene Clip</h3>
       </div>
+      <button class="modal-x" onclick="closeM('mClip')" style="font-size:20px;color:rgba(255,255,255,0.5);background:none;border:none;cursor:pointer">✕</button>
+    </div>
 
-      <!-- Auto download checkbox & info -->
-      <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);padding:10px 14px;border-radius:8px;border:1px solid var(--border);margin-bottom:12px">
-        <label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer">
-          <input type="checkbox" id="chkAutoDownload" checked style="width:16px;height:16px;accent-color:var(--ac)">
-          ⚡ Automatically start &amp; download when A and B are set
-        </label>
-        <span id="clipTimeValid" style="font-size:11px;color:var(--text3)">Set Start and End</span>
-      </div>
+    <p class="clip-modal-desc">
+      Set a Start (A) and End (B) point, then download your clip (maximum 10 minutes). Recording captures live audio and video directly to a local webm/mp4 file.
+    </p>
 
-      <!-- Live progress bar -->
-      <div id="clipProgressWrap" class="hidden" style="margin-bottom:12px;background:var(--bg3);padding:12px;border-radius:8px;border:1px solid var(--border)">
-        <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600;margin-bottom:6px">
-          <span id="clipProgLabel" style="color:var(--danger)">🔴 Recording clip...</span>
-          <span id="clipProgPct" style="color:var(--ac)">0%</span>
-        </div>
-        <div style="height:8px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden">
-          <div id="clipProgFill" style="height:100%;width:0%;background:linear-gradient(90deg,var(--ac),var(--danger));transition:width .2s"></div>
-        </div>
+    <!-- Top Two Cards: Start (A) & End (B) -->
+    <div class="clip-dual-grid">
+      <div class="clip-timer-card">
+        <div class="clip-timer-tag">START (A)</div>
+        <input type="text" id="inpClipStart" class="clip-clock-input" value="0:00:00" placeholder="0:00:00" onchange="onManualClipChange('start')">
       </div>
+      <div class="clip-timer-card">
+        <div class="clip-timer-tag">END (B)</div>
+        <input type="text" id="inpClipEnd" class="clip-clock-input" value="0:00:10" placeholder="0:00:10" onchange="onManualClipChange('end')">
+      </div>
+    </div>
 
-      <!-- Action buttons -->
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-p" id="btnDownClip" onclick="downloadClip()" style="border-color:var(--success);color:var(--success);padding:9px 20px" disabled>⬇ Download Clip</button>
-        <button class="btn btn-d" id="btnStopClip" onclick="stopClipEarly()" style="display:none;padding:9px 20px">⏹ Stop &amp; Save Now</button>
-        <button class="btn btn-d" onclick="clearClip()">🗑 Clear</button>
+    <!-- Duration Card -->
+    <div class="clip-dur-card">
+      <div class="clip-timer-tag">CLIP DURATION (MAX 10 MIN)</div>
+      <input type="text" id="inpClipDur" class="clip-clock-input" value="0:00:10" placeholder="0:00:10" onchange="onManualClipChange('dur')">
+      <div style="display:flex;gap:6px;justify-content:center;margin-top:8px">
+        <button class="clip-quick-btn" onclick="addClipDur(5)">+5s</button>
+        <button class="clip-quick-btn" onclick="addClipDur(15)">+15s</button>
+        <button class="clip-quick-btn" onclick="addClipDur(30)">+30s</button>
+        <button class="clip-quick-btn" onclick="addClipDur(60)">+1m</button>
       </div>
+    </div>
+
+    <!-- Set Start (A) and Set End (B) row -->
+    <div class="clip-btn-row">
+      <button class="clip-btn-set" onclick="setClipA()">
+        📍 Set Start (A)
+      </button>
+      <button class="clip-btn-set" onclick="setClipB()">
+        📍 Set End (B)
+      </button>
+    </div>
+
+    <!-- Auto download checkbox & status info -->
+    <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.03);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);margin:14px 0">
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:rgba(255,255,255,0.8);cursor:pointer">
+        <input type="checkbox" id="chkAutoDownload" checked style="width:16px;height:16px;accent-color:#38bdf8">
+        ⚡ Automatically download clip when End (B) is set
+      </label>
+      <span id="clipTimeValid" style="font-size:11px;color:#38bdf8;font-weight:600">Ready</span>
+    </div>
+
+    <!-- Live Recording Progress Bar -->
+    <div id="clipProgressWrap" class="hidden" style="margin-bottom:14px;background:rgba(255,255,255,0.04);padding:12px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.1)">
+      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-bottom:8px">
+        <span id="clipProgLabel" style="color:#ef4444">🔴 Recording live clip...</span>
+        <span id="clipProgPct" style="color:#38bdf8">0%</span>
+      </div>
+      <div style="height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden">
+        <div id="clipProgFill" style="height:100%;width:0%;background:linear-gradient(90deg, #38bdf8, #ef4444);transition:width 0.2s"></div>
+      </div>
+    </div>
+
+    <!-- Bottom Actions: Download Clip & Clear -->
+    <div class="clip-action-row">
+      <button class="clip-btn-download" id="btnDownClip" onclick="downloadClip()">
+        ⬇ Download Clip
+      </button>
+      <button class="clip-btn-stop hidden" id="btnStopClip" onclick="stopClipEarly()" style="display:none">
+        ⏹ Stop &amp; Save Now
+      </button>
+      <button class="clip-btn-clear" onclick="clearClip()">
+        🗑 Clear
+      </button>
     </div>
   </div>
 </div>
@@ -797,37 +825,156 @@
   </div>
 </div>
 
-<!-- Profile -->
+<!-- Profile Studio (Compact & High-Customization) -->
 <div id="mProfile" class="modal-back hidden" onclick="onBdClick(event,'mProfile')">
-  <div class="modal">
-    <div class="modal-hdr"><span class="mh-icon">👤</span><h3>My Profile</h3><button class="modal-x" onclick="closeM('mProfile')">✕</button></div>
-    <div class="modal-body">
-      <div class="av-wrap">
-        <img id="avPrev" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='36' r='24' fill='%2306b6d4'/%3E%3Ccircle cx='50' cy='96' r='34' fill='%2306b6d4'/%3E%3C/svg%3E" class="av-prev" alt="Avatar">
-        <label class="btn" style="cursor:pointer">📷 Change Photo<input type="file" accept="image/*" style="display:none" onchange="onAvatarChange(this)"></label>
+  <div class="modal profile-studio-modal">
+    <div class="modal-hdr" style="padding:10px 16px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="mh-icon" style="font-size:16px">👤</span>
+        <h3 style="font-size:15px;margin:0;font-weight:700">Profile &amp; Avatar Studio</h3>
       </div>
-      <div class="fg"><div class="fl">Display Name</div><input id="pName" class="fi" placeholder="Your name"></div>
-      <div class="fg"><div class="fl">User ID</div><input id="pId" class="fi" readonly style="opacity:.5"></div>
-      <div class="fg"><div class="fl">Bio</div><input id="pBio" class="fi" placeholder="Short bio..."></div>
-      <div class="fg"><div class="fl">Favourite Genre</div>
-        <select id="pGenre" class="fi fi-sel">
-          <option value="Action">Action</option><option value="Comedy">Comedy</option>
-          <option value="Thriller">Thriller</option><option value="Sci-Fi">Sci-Fi</option>
-          <option value="Romance">Romance</option><option value="Horror">Horror</option>
-          <option value="Soundtrack">Soundtrack</option><option value="Documentary">Documentary</option>
-        </select>
+      <button class="modal-x" onclick="closeM('mProfile')">✕</button>
+    </div>
+
+    <div class="modal-body" style="padding:14px 16px;max-height:78vh;overflow-y:auto">
+      <!-- Top Avatar & Info Row -->
+      <div class="pf-top-row">
+        <div class="pf-avatar-box">
+          <div id="avContainer" class="pf-av-container">
+            <img id="avPrev" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='36' r='24' fill='%2306b6d4'/%3E%3Ccircle cx='50' cy='96' r='34' fill='%2306b6d4'/%3E%3C/svg%3E" class="pf-av-img" alt="Avatar">
+          </div>
+          <div style="display:flex;gap:6px;margin-top:8px">
+            <label class="pf-chip-btn" style="cursor:pointer">📷 Photo<input type="file" accept="image/*" style="display:none" onchange="onAvatarChange(this)"></label>
+            <button class="pf-chip-btn" onclick="removeAvatarPhoto()" title="Reset Photo">🗑</button>
+          </div>
+        </div>
+
+        <div class="pf-info-fields">
+          <div class="pf-field">
+            <label class="pf-label">Display Name</label>
+            <input id="pName" class="pf-input" placeholder="Your Name" value="Surendhar S">
+          </div>
+          <div class="pf-field">
+            <label class="pf-label">Bio / Tagline</label>
+            <input id="pBio" class="pf-input" placeholder="Cinema Enthusiast" value="Beta Player User">
+          </div>
+        </div>
       </div>
-      <div class="sec">Photo Border Style</div>
-      <div id="profileBorderGrid" style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:4px"></div>
-      <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:12px;color:var(--text2)">Border Color:</span>
-        <input type="color" value="#06b6d4" oninput="setProfileBorderColor(this.value)">
-        <span style="font-size:12px;color:var(--text2)">Border Width:</span>
-        <input type="range" min="0" max="8" value="3" style="width:80px" oninput="setProfileBorderWidth(this.value)">
+
+      <!-- Studio Navigation Tabs -->
+      <div class="pf-tabs-bar">
+        <button class="pf-tab-btn active" onclick="switchPfTab('shapes')">📐 Shapes</button>
+        <button class="pf-tab-btn" onclick="switchPfTab('borders')">✨ Frames</button>
+        <button class="pf-tab-btn" onclick="switchPfTab('sliders')">🎛️ Radius &amp; Glow</button>
+        <button class="pf-tab-btn" onclick="switchPfTab('filters')">🎬 Filters</button>
+      </div>
+
+      <!-- TAB 1: SHAPES & RADIUS PRESETS -->
+      <div id="pfTabShapes" class="pf-tab-content active">
+        <div class="pf-section-title">Select Avatar Shape Preset</div>
+        <div class="pf-grid-shapes">
+          <button class="pf-shape-chip active" onclick="setProfileShape('circle')">Circle (50%)</button>
+          <button class="pf-shape-chip" onclick="setProfileShape('squircle')">Squircle</button>
+          <button class="pf-shape-chip" onclick="setProfileShape('rounded16')">Rounded 16px</button>
+          <button class="pf-shape-chip" onclick="setProfileShape('rounded8')">Soft 8px</button>
+          <button class="pf-shape-chip" onclick="setProfileShape('leaf1')">Leaf Right</button>
+          <button class="pf-shape-chip" onclick="setProfileShape('leaf2')">Leaf Left</button>
+          <button class="pf-shape-chip" onclick="setProfileShape('teardrop')">Teardrop</button>
+          <button class="pf-shape-chip" onclick="setProfileShape('pill')">Pill Capsule</button>
+          <button class="pf-shape-chip" onclick="setProfileShape('square')">Hard Square</button>
+        </div>
+      </div>
+
+      <!-- TAB 2: 14+ BORDER STYLES & DESIGNS -->
+      <div id="pfTabBorders" class="pf-tab-content">
+        <div class="pf-section-title">Select Frame &amp; Border Style</div>
+        <div class="pf-grid-borders">
+          <button class="pf-border-chip active" onclick="setProfileBorderDesign('solid')">Solid Crisp</button>
+          <button class="pf-border-chip" onclick="setProfileBorderDesign('double')">Double Ring</button>
+          <button class="pf-border-chip" onclick="setProfileBorderDesign('dashed')">Dashed Tech</button>
+          <button class="pf-border-chip" onclick="setProfileBorderDesign('dotted')">Dotted Orbit</button>
+          <button class="pf-border-chip" onclick="setProfileBorderDesign('groove')">Groove 3D</button>
+          <button class="pf-border-chip" onclick="setProfileBorderDesign('ridge')">Ridge 3D</button>
+          <button class="pf-border-chip" onclick="setProfileBorderDesign('neon')">Neon Halo</button>
+          <button class="pf-border-chip" onclick="setProfileBorderDesign('cyber')">Cyber Gradient</button>
+          <button class="pf-border-chip" onclick="setProfileBorderDesign('gold')">Gold Royalty</button>
+          <button class="pf-border-chip" onclick="setProfileBorderDesign('fire')">Fire Ember</button>
+          <button class="pf-border-chip" onclick="setProfileBorderDesign('cosmic')">Cosmic Violet</button>
+          <button class="pf-border-chip" onclick="setProfileBorderDesign('holo')">Hologram Aura</button>
+          <button class="pf-border-chip" onclick="setProfileBorderDesign('prism')">Rainbow Prism</button>
+          <button class="pf-border-chip" onclick="setProfileBorderDesign('none')">Frameless</button>
+        </div>
+      </div>
+
+      <!-- TAB 3: SLIDERS & GLOW -->
+      <div id="pfTabSliders" class="pf-tab-content">
+        <!-- Radius Slider -->
+        <div class="pf-slider-row">
+          <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;margin-bottom:4px">
+            <span>Border Corner Radius</span>
+            <span id="lblRadiusVal" style="color:var(--ac)">50%</span>
+          </div>
+          <input type="range" id="rngRadius" min="0" max="50" value="50" oninput="onProfileRadiusSlider(this.value)" style="width:100%">
+        </div>
+
+        <!-- Width Slider -->
+        <div class="pf-slider-row" style="margin-top:10px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;margin-bottom:4px">
+            <span>Border Width</span>
+            <span id="lblWidthVal" style="color:var(--ac)">3px</span>
+          </div>
+          <input type="range" id="rngWidth" min="0" max="14" value="3" oninput="onProfileWidthSlider(this.value)" style="width:100%">
+        </div>
+
+        <!-- Glow Intensity Slider -->
+        <div class="pf-slider-row" style="margin-top:10px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;margin-bottom:4px">
+            <span>Glow / Halo Intensity</span>
+            <span id="lblGlowVal" style="color:var(--ac)">12px</span>
+          </div>
+          <input type="range" id="rngGlow" min="0" max="30" value="12" oninput="onProfileGlowSlider(this.value)" style="width:100%">
+        </div>
+
+        <!-- Color Palette -->
+        <div style="margin-top:12px">
+          <div style="font-size:11px;font-weight:600;margin-bottom:6px">Frame &amp; Glow Color</div>
+          <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+            <button class="pf-swatch" style="background:#06b6d4" onclick="setProfileColor('#06b6d4')"></button>
+            <button class="pf-swatch" style="background:#3b82f6" onclick="setProfileColor('#3b82f6')"></button>
+            <button class="pf-swatch" style="background:#f59e0b" onclick="setProfileColor('#f59e0b')"></button>
+            <button class="pf-swatch" style="background:#10b981" onclick="setProfileColor('#10b981')"></button>
+            <button class="pf-swatch" style="background:#ec4899" onclick="setProfileColor('#ec4899')"></button>
+            <button class="pf-swatch" style="background:#8b5cf6" onclick="setProfileColor('#8b5cf6')"></button>
+            <button class="pf-swatch" style="background:#ef4444" onclick="setProfileColor('#ef4444')"></button>
+            <button class="pf-swatch" style="background:#ffffff" onclick="setProfileColor('#ffffff')"></button>
+            <input type="color" id="pfCustomColor" value="#06b6d4" oninput="setProfileColor(this.value)" style="width:26px;height:26px;cursor:pointer;border-radius:6px;border:none">
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 4: PHOTO FILTERS -->
+      <div id="pfTabFilters" class="pf-tab-content">
+        <div class="pf-section-title">Photo Tone &amp; Grading Effects</div>
+        <div class="pf-grid-filters">
+          <button class="pf-filter-chip active" onclick="setProfileFilter('none')">Original</button>
+          <button class="pf-filter-chip" onclick="setProfileFilter('cinematic')">Cinematic</button>
+          <button class="pf-filter-chip" onclick="setProfileFilter('noir')">Noir B&amp;W</button>
+          <button class="pf-filter-chip" onclick="setProfileFilter('sepia')">Vintage Sepia</button>
+          <button class="pf-filter-chip" onclick="setProfileFilter('cyber')">Cyber Blue</button>
+          <button class="pf-filter-chip" onclick="setProfileFilter('contrast')">High Contrast</button>
+          <button class="pf-filter-chip" onclick="setProfileFilter('gold')">Golden Warm</button>
+          <button class="pf-filter-chip" onclick="setProfileFilter('cool')">Cool Emerald</button>
+        </div>
       </div>
     </div>
-    <div class="modal-ftr">
-      <button class="btn btn-p" onclick="saveProfile()">💾 Save Profile</button>
+
+    <!-- Modal Footer Actions -->
+    <div class="modal-ftr" style="padding:10px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <div style="display:flex;gap:6px">
+        <button class="pf-chip-btn" onclick="exportProfileToFile()" title="Backup profile to computer file">💾 Backup File</button>
+        <label class="pf-chip-btn" style="cursor:pointer" title="Restore profile from backup file">📂 Restore<input type="file" accept=".json" style="display:none" onchange="importProfileFromFile(this)"></label>
+      </div>
+      <button class="btn btn-p" onclick="saveProfile()" style="padding:7px 18px;font-size:12px;font-weight:700">✓ Save Profile</button>
     </div>
   </div>
 </div>
