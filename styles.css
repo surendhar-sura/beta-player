@@ -197,6 +197,16 @@ select option { background: var(--bg3) !important; color: var(--text) !important
   background: var(--ac-grad);
   display: flex; align-items: center; justify-content: center;
   font-family: var(--orb); font-size: 13px; font-weight: 900; color: #000;
+  animation: spinVehicleWheel 2.5s linear infinite;
+  transform-origin: center center;
+  box-shadow: 0 0 10px var(--ac-glow);
+}
+.hdr-logo:hover .hdr-logo-icon {
+  animation-duration: 0.8s; /* Accelerated vehicle spin on hover */
+}
+@keyframes spinVehicleWheel {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 .hdr-logo-text {
   font-family: var(--orb); font-size: 11px; font-weight: 900;
@@ -239,9 +249,16 @@ select option { background: var(--bg3) !important; color: var(--text) !important
 .hdr-avatar {
   width: 26px; height: 26px; border-radius: 50%; overflow: hidden;
   border: 1.5px solid var(--ac); cursor: pointer; flex-shrink: 0;
-  background: var(--bg3);
+  background: var(--bg3); box-shadow: 0 0 8px var(--ac-glow);
 }
-.hdr-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.hdr-avatar img {
+  width: 100%; height: 100%; object-fit: cover;
+  animation: spinVehicleWheel 3s linear infinite;
+  transform-origin: center center;
+}
+.hdr-avatar:hover img {
+  animation-duration: 0.9s; /* Spining vehicle acceleration */
+}
 
 /* ─── BODY ───────────────────────────────────────────────────────────────────── */
 #body { display: flex; flex: 1; overflow: hidden; }
@@ -443,10 +460,23 @@ select option { background: var(--bg3) !important; color: var(--text) !important
 .cb-stop { color: var(--danger) !important; }
 .cb-stop:hover { background: rgba(239,68,68,.1) !important; border-color: var(--danger) !important; }
 
-/* Volume */
+/* Volume (Supports up to 1000% Boost) */
 .vol-wrap { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
-#volSlider { width: 80px; }
-#volPct { font-size: 11px; font-family: var(--mono); color: var(--text2); min-width: 34px; }
+#volSlider {
+  -webkit-appearance: none; appearance: none;
+  width: 86px; height: 5px; border-radius: 3px;
+  background: rgba(255, 255, 255, 0.2);
+  outline: none; cursor: pointer; transition: width 0.2s ease;
+}
+#volSlider:hover { width: 105px; }
+#volSlider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 13px; height: 13px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.7);
+  cursor: pointer; transition: transform 0.1s ease;
+}
+#volSlider::-webkit-slider-thumb:hover { transform: scale(1.25); }
+#volPct { font-size: 11px; font-family: var(--mono); color: var(--text2); min-width: 44px; font-weight: 600; }
 
 /* Separator */
 .cs { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; margin: 0 3px; }
@@ -789,10 +819,7 @@ select option { background: var(--bg3) !important; color: var(--text) !important
 
 /* ─── TOGGLES BAR ────────────────────────────────────────────────────────────── */
 #togglesBar {
-  display: flex; align-items: center; gap: 6px;
-  padding: 6px 14px; background: var(--bg2);
-  border-bottom: 1px solid var(--border); flex-shrink: 0;
-  overflow-x: auto; scrollbar-width: none;
+  display: none !important;
 }
 #togglesBar::-webkit-scrollbar { display: none; }
 .tg-btn {
@@ -1171,8 +1198,210 @@ select option { background: var(--bg3) !important; color: var(--text) !important
   transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
-.screen-locked #playlistPanel {
+.screen-locked #playlistPanel,
+.screen-locked #quickSettingsPop,
+.screen-locked #subQuickPanel {
   display: none !important;
+}
+
+/* Sidebar Toggle */
+#miniNav {
+  transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+              min-width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.22s ease,
+              padding 0.28s ease !important;
+  overflow: hidden;
+}
+
+#shell.sidebar-hidden #miniNav {
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  padding: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  border-right: none !important;
+}
+
+/* VLC Floating Time Summary */
+.ctrl-time-summary {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+  padding: 0 8px;
+}
+
+/* Floating Lock Indicator Button (Never blocks movie while playing) */
+.floating-lock {
+  position: absolute;
+  top: 18px;
+  right: 22px;
+  left: auto;
+  transform: none;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  background: rgba(16, 20, 30, 0.92);
+  border: 1px solid rgba(6, 182, 212, 0.7);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8), 0 0 14px rgba(6, 182, 212, 0.3);
+  border-radius: 20px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap !important;
+  cursor: pointer;
+  backdrop-filter: blur(16px);
+  animation: lockPulseGlow 2.5s infinite ease-in-out;
+  pointer-events: all !important;
+  user-select: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.floating-lock.hidden {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateY(-6px) !important;
+}
+
+@keyframes lockPulseGlow {
+  0%, 100% { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8), 0 0 12px rgba(6, 182, 212, 0.3); border-color: rgba(6, 182, 212, 0.6); }
+  50% { box-shadow: 0 8px 30px rgba(0, 0, 0, 0.95), 0 0 24px rgba(6, 182, 212, 0.8); border-color: rgba(6, 182, 212, 1); }
+}
+
+.floating-lock .fl-icon { font-size: 14px; }
+.floating-lock .fl-text { letter-spacing: 0.4px; white-space: nowrap; }
+
+/* Quick Cinema Settings Popover */
+.quick-settings-pop {
+  position: absolute;
+  bottom: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 580px;
+  background: rgba(16, 19, 28, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.92), 0 0 1px rgba(255, 255, 255, 0.2) inset;
+  backdrop-filter: blur(24px);
+  z-index: 1200;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: popUpAnim 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes popUpAnim {
+  from { opacity: 0; transform: translate(-50%, 14px) scale(0.98); }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+
+.qsp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.5px;
+}
+
+.qsp-close {
+  background: none;
+  border: none;
+  color: var(--text3);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.qsp-close:hover { color: var(--text); background: rgba(255, 255, 255, 0.1); }
+
+.qsp-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.qsp-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.qsp-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text3);
+  letter-spacing: 1px;
+}
+
+.qsp-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.qsp-chip {
+  padding: 5px 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 16px;
+  color: var(--text2);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.qsp-chip:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.qsp-chip.active {
+  background: var(--ac);
+  color: #000;
+  border-color: var(--ac);
+  font-weight: 700;
+}
+
+.qsp-sliders {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.qsp-sliders label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text2);
+}
+
+.qsp-sliders label span {
+  font-family: var(--mono);
+  color: var(--ac);
+  font-weight: 700;
+}
+
+.qsp-sliders input[type="range"] {
+  width: 100%;
 }
 
 /* ================================================================
@@ -1344,23 +1573,59 @@ select option { background: var(--bg3) !important; color: var(--text) !important
 /* In Fullscreen mode, overlay controls cleanly at bottom */
 #stage:fullscreen,
 #stage:-webkit-full-screen,
-#videoWrap:fullscreen,
-#videoWrap:-webkit-full-screen {
-  background: #000;
-  width: 100vw;
-  height: 100vh;
+#stage.vlc-fullscreen {
+  background: #000 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
 }
 
+#stage:fullscreen #videoWrap,
+#stage:-webkit-full-screen #videoWrap {
+  width: 100% !important;
+  height: 100% !important;
+  position: absolute !important;
+  inset: 0 !important;
+}
+
+#stage:fullscreen #controls,
+#stage:-webkit-full-screen #controls,
+#stage.vlc-fullscreen #controls,
 :fullscreen #controls,
 :-webkit-full-screen #controls {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
-  background: linear-gradient(0deg, rgba(8, 9, 15, 0.95) 0%, rgba(8, 9, 15, 0.7) 60%, transparent 100%) !important;
-  border-top: none !important;
-  backdrop-filter: blur(12px) !important;
+  position: absolute !important;
+  bottom: 24px !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
+  width: 90% !important;
+  max-width: 920px !important;
+  z-index: 10000 !important;
+  background: rgba(22, 24, 32, 0.94) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.9), 0 0 1px rgba(255, 255, 255, 0.2) inset !important;
+  backdrop-filter: blur(20px) !important;
+  padding: 8px 16px 8px !important;
+  gap: 6px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  opacity: 1 !important;
+  pointer-events: all !important;
+  transition: opacity 0.3s ease, transform 0.3s ease !important;
+}
+
+#stage:fullscreen.idle-hide #controls,
+#stage:-webkit-full-screen.idle-hide #controls,
+#stage.vlc-fullscreen.idle-hide #controls,
+:fullscreen.idle-hide #controls,
+:-webkit-full-screen.idle-hide #controls {
+  opacity: 0 !important;
+  transform: translate(-50%, 40px) !important;
+  pointer-events: none !important;
 }
 
 /* ================================================================
@@ -1564,4 +1829,48 @@ select option { background: var(--bg3) !important; color: var(--text) !important
 .pf-chip-btn:hover {
   background: rgba(255, 255, 255, 0.12);
   color: #fff;
+}
+
+/* ================================================================
+   MODERN TOOLTIP PILL BADGE (Action + Shortcut)
+   ================================================================ */
+.bp-tooltip {
+  position: fixed;
+  z-index: 999999;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(24, 27, 36, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #f1f5f9;
+  padding: 5px 11px;
+  border-radius: 9px;
+  font-size: 11.5px;
+  font-weight: 500;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 1px rgba(255, 255, 255, 0.25) inset;
+  backdrop-filter: blur(14px);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.16s cubic-bezier(0.16, 1, 0.3, 1), transform 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+}
+
+.bp-tooltip.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.bp-tip-kbd {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #cbd5e1;
+  letter-spacing: 0.5px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }

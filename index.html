@@ -75,13 +75,19 @@
 
   <!-- HEADER -->
   <header id="hdr">
-    <a class="hdr-logo" href="#" onclick="return false">
-      <div class="hdr-logo-icon">β</div>
-      <div>
-        <div class="hdr-logo-text">BETA PLAYER</div>
-        <div class="hdr-logo-sub">BY SURENDHAR S</div>
-      </div>
-    </a>
+    <div style="display:flex;align-items:center;gap:10px">
+      <button class="hdr-btn" id="btnToggleSidebar" onclick="toggleSidebar()" title="Toggle Sidebar (\)">
+        <span class="hdr-btn-icon">☰</span>
+        <span class="hdr-btn-label">Sidebar</span>
+      </button>
+      <a class="hdr-logo" href="#" onclick="return false">
+        <div class="hdr-logo-icon">β</div>
+        <div>
+          <div class="hdr-logo-text">BETA PLAYER</div>
+          <div class="hdr-logo-sub">BY SURENDHAR S</div>
+        </div>
+      </a>
+    </div>
 
     <!-- Now playing pill -->
     <div id="nowPlayingPill" class="hidden" onclick="openM('mInspector')">
@@ -101,7 +107,7 @@
         <span class="hdr-btn-icon">🎨</span>
         <span class="hdr-btn-label">Theme</span>
       </button>
-      <button class="hdr-btn" onclick="openM('mSettings')" title="Settings">
+      <button class="hdr-btn" onclick="toggleQuickSettings()" title="Settings & Cinema Controls (⚙️)">
         <span class="hdr-btn-icon">⚙️</span>
         <span class="hdr-btn-label">Settings</span>
       </button>
@@ -251,10 +257,106 @@
         <!-- Resume button (shown when autoplay blocked) -->
         <button id="resumeBtn" class="hidden"><span id="resumeInfo">▶ Resume</span></button>
         <!-- Floating Lock Button (Shown when screen is locked) -->
-        <button id="floatingLockBtn" class="floating-lock hidden" onclick="toggleScreenLock()" title="Tap to Unlock Screen">🔒</button>
+        <button id="floatingLockBtn" class="floating-lock hidden" onclick="toggleScreenLock()" title="Tap to Unlock Screen (L)">
+          <span class="fl-icon">🔒</span>
+          <span class="fl-text">SCREEN LOCKED — Tap or Press 'L' to Unlock</span>
+        </button>
+
+        <!-- Quick Cinema Settings & Controls Popover -->
+        <div id="quickSettingsPop" class="quick-settings-pop hidden">
+          <div class="qsp-header">
+            <span>⚙️ Cinema Controls & Quick Settings</span>
+            <button class="qsp-close" onclick="toggleQuickSettings()">✕</button>
+          </div>
+          <div class="qsp-body">
+            <!-- Playback Speed -->
+            <div class="qsp-group">
+              <div class="qsp-title">⚡ Playback Speed</div>
+              <div class="qsp-row">
+                <button class="qsp-chip" onclick="setSpd(0.5)">0.5x</button>
+                <button class="qsp-chip" onclick="setSpd(0.75)">0.75x</button>
+                <button class="qsp-chip active" id="spd1Chip" onclick="setSpd(1)">1x Normal</button>
+                <button class="qsp-chip" onclick="setSpd(1.25)">1.25x</button>
+                <button class="qsp-chip" onclick="setSpd(1.5)">1.5x</button>
+                <button class="qsp-chip" onclick="setSpd(2)">2x Fast</button>
+              </div>
+            </div>
+
+            <!-- Screen & Aspect Ratio Customizer -->
+            <div class="qsp-group">
+              <div class="qsp-title">📐 Screen & Custom Frame Ratio</div>
+              <div class="qsp-row">
+                <button class="qsp-chip" onclick="setMode('fit')">Fit</button>
+                <button class="qsp-chip" onclick="setMode('cover')">Fill / Cover</button>
+                <button class="qsp-chip" onclick="setMode('theater')">Theater</button>
+                <button class="qsp-chip" onclick="setMode('stretch')">Stretch</button>
+                <button class="qsp-chip" onclick="setMode('16:9')">16:9 HD</button>
+                <button class="qsp-chip" onclick="setMode('4:3')">4:3 Retro</button>
+                <button class="qsp-chip" onclick="setMode('21:9')">21:9 Cinema</button>
+                <button class="qsp-chip" onclick="setMode('imax')">IMAX 1.43:1</button>
+                <button class="qsp-chip" onclick="setMode('1:1')">1:1 Square</button>
+                <button class="qsp-chip" onclick="setMode('9:16')">9:16 Mobile</button>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:11px">
+                <span style="color:var(--text3);font-weight:600">Custom:</span>
+                <input id="qspRatioW" type="number" class="fi" value="16" style="width:50px;padding:3px 6px;font-size:11px" placeholder="W">
+                <span>:</span>
+                <input id="qspRatioH" type="number" class="fi" value="9" style="width:50px;padding:3px 6px;font-size:11px" placeholder="H">
+                <button class="btn btn-p" style="padding:3px 10px;font-size:11px" onclick="setCustomRatio(+$('qspRatioW').value, +$('qspRatioH').value)">Apply</button>
+              </div>
+              <div style="margin-top:6px">
+                <label style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:3px">
+                  <span>Frame Zoom / Scale</span>
+                  <span id="qspScaleVal" style="font-family:var(--mono);color:var(--ac);font-weight:700">100%</span>
+                </label>
+                <input type="range" min="0.5" max="2" step="0.05" value="1" style="width:100%" oninput="setVideoScale(this.value)">
+              </div>
+            </div>
+
+            <!-- Audio Boost & Modes (Up to 1000%) -->
+            <div class="qsp-group">
+              <div class="qsp-title">🎧 Audio Engine & 1000% Boost</div>
+              <div class="qsp-row">
+                <button class="qsp-chip" onclick="setAudioMode('normal')">🔈 Normal</button>
+                <button class="qsp-chip" onclick="setAudioMode('headphones')">🎧 Headphones Surround</button>
+                <button class="qsp-chip" onclick="setVol(1)">100% Vol</button>
+                <button class="qsp-chip" onclick="setVol(2)">200% Vol</button>
+                <button class="qsp-chip" onclick="setVol(5)">500% Boost</button>
+                <button class="qsp-chip" onclick="setVol(10)">🚀 1000% Max Boost</button>
+              </div>
+            </div>
+
+            <!-- Picture Adjustments -->
+            <div class="qsp-group">
+              <div class="qsp-title">☀ Picture Adjustments</div>
+              <div class="qsp-sliders">
+                <label>Brightness <span id="qspBrightVal">100%</span>
+                  <input type="range" min="30" max="200" value="100" oninput="BP.v.bright=+this.value;applyFilters();$('qspBrightVal').textContent=this.value+'%'">
+                </label>
+                <label>Contrast <span id="qspContrastVal">100%</span>
+                  <input type="range" min="50" max="200" value="100" oninput="BP.v.contrast=+this.value;applyFilters();$('qspContrastVal').textContent=this.value+'%'">
+                </label>
+              </div>
+            </div>
+
+            <!-- Tools & Cinema -->
+            <div class="qsp-group">
+              <div class="qsp-title">🛠 Tools & Cinema</div>
+              <div class="qsp-row">
+                <button class="qsp-chip" onclick="cycleLoop()">🔁 A-B Loop</button>
+                <button class="qsp-chip" onclick="toggleSubs()">💬 Subtitles</button>
+                <button class="qsp-chip" onclick="setDim(BP.v.dim==='off'?'3d':'off')">🌐 3D Mode</button>
+                <button class="qsp-chip" onclick="takeSnapshot()">📸 Snapshot</button>
+                <button class="qsp-chip" onclick="toggleScreenLock()">🔒 Screen Lock (L)</button>
+                <button class="qsp-chip" onclick="toggleSidebar()">🗂 Toggle Sidebar (\)</button>
+                <button class="qsp-chip" onclick="openM('mSettings')">⚙️ Full Settings</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div><!-- end videoWrap -->
 
-      <!-- CONTROLS -->
+      <!-- CONTROLS (VLC Floating Architecture Model) -->
       <div id="controls">
         <!-- Scrubber row -->
         <div id="scrubWrap">
@@ -271,64 +373,48 @@
           <span id="scrubRemain" class="scrubTime">-0:00:00</span>
         </div>
 
-        <!-- Buttons row -->
+        <!-- Buttons row: VLC Floating Layout -->
         <div id="ctrlRow">
-          <!-- Transport -->
-          <button class="cb" onclick="seekBy(-10)" title="Back 10s (←)">⏮10</button>
-          <button class="cb" onclick="stepFrame(-1)" title="Prev Frame (,)">&lt;|</button>
+          <!-- Play / Pause -->
           <button class="cb cb-play" id="btnPlay" onclick="togglePlay()" title="Play/Pause (Space)">
             <span id="playIcon">▶</span>
           </button>
-          <button class="cb" onclick="stepFrame(1)" title="Next Frame (.)"  >|&gt;</button>
-          <button class="cb" onclick="seekBy(10)" title="Fwd 10s (→)">10⏭</button>
+
+          <!-- Prev Frame / Track -->
+          <button class="cb" onclick="seekBy(-10)" title="Back 10s (←)">⏮</button>
           <button class="cb cb-stop" onclick="stopPlayback()" title="Stop (S)">⏹</button>
+          <button class="cb" onclick="seekBy(10)" title="Fwd 10s (→)">⏭</button>
+          <button class="cb" onclick="stepFrame(-1)" title="Prev Frame (,)">&lt;|</button>
+          <button class="cb" onclick="stepFrame(1)" title="Next Frame (.)">|&gt;</button>
 
           <div class="cs"></div>
 
-          <!-- Volume -->
+          <!-- Quick Settings Popover Trigger (⚙️) -->
+          <button class="cb" id="btnQuickSettings" onclick="toggleQuickSettings()" title="Settings & Cinema Controls (⚙️)">
+            ⚙️
+          </button>
+
+          <!-- Lock Screen Trigger (🔒) -->
+          <button class="cb" id="btnLock" onclick="toggleScreenLock()" title="Lock Screen (L)">
+            🔒
+          </button>
+
+          <div class="cs"></div>
+
+          <!-- Volume (speaker icon + slider up to 1000%) -->
           <button class="cb" id="btnMute" onclick="toggleMute()" title="Mute (M)">
             <span id="muteIcon">🔊</span>
           </button>
           <div class="vol-wrap">
             <input type="range" id="volSlider" min="0" max="10" step="0.05" value="1"
-              oninput="setVol(parseFloat(this.value))">
+              oninput="setVol(parseFloat(this.value))" title="Volume & Boost (0-1000%)">
             <span id="volPct">100%</span>
           </div>
 
-          <div class="cs"></div>
-
-          <!-- Loop A-B -->
-          <button class="cb" id="btnLoop" onclick="cycleLoop()" title="A-B Loop (R)">
-            🔁<small id="loopLbl" style="font-size:9px;margin-left:1px">A-B</small>
-          </button>
-
-          <!-- Screen mode -->
-          <button class="cb" onclick="openM('mScreenModes')" title="Screen Modes (V)">📐</button>
-
-          <!-- Subtitle CC button -->
-          <button class="cb" id="btnCC" onclick="toggleSubPanel()" title="Subtitles (C)">
-            CC
-            <span id="ccDot" class="hidden" style="position:absolute;top:4px;right:4px;width:6px;height:6px;border-radius:50%;background:var(--ac)"></span>
-          </button>
-
-          <!-- Screenshot -->
-          <button class="cb" onclick="takeSnapshot()" title="Snapshot (T)">📸</button>
-
-          <div class="cs"></div>
-
-          <!-- Badges -->
-          <span class="ctrl-badge" id="speedBadge" onclick="openM('mSettings')" title="Speed ([,])">1x Speed</span>
-          <span class="ctrl-badge" id="modeBadge" onclick="toggleAudioMode()" title="Audio Mode (N)">🔈 Normal</span>
-          <span class="ctrl-badge" id="qualBadge" onclick="openM('mAudio')" title="Quality">Auto</span>
-
           <div class="ctrl-gap"></div>
 
-          <!-- Brightness quick -->
-          <span style="font-size:13px;color:var(--text2)">☀</span>
-          <input type="range" id="slBright" min="0" max="200" value="100" style="width:70px"
-            oninput="BP.v.bright=+this.value;applyFilters()">
-
-          <div class="cs"></div>
+          <!-- Time summary (VLC Model: 00:09 / 2:36:21) -->
+          <span id="ctrlTimeSummary" class="ctrl-time-summary">0:00:00 / 0:00:00</span>
 
           <!-- Fullscreen -->
           <button class="cb" onclick="toggleFullscreen()" title="Fullscreen (F)">
@@ -1112,6 +1198,12 @@
       <div id="glContainer"><div style="text-align:center;color:var(--text3);padding:32px">No playlists yet. Create one above!</div></div>
     </div>
   </div>
+</div>
+
+<!-- Modern Tooltip Pill Badge (Action + Shortcut) -->
+<div id="bpTooltip" class="bp-tooltip hidden">
+  <span id="bpTipText"></span>
+  <kbd id="bpTipKbd" class="bp-tip-kbd"></kbd>
 </div>
 
 <script src="app.js" charset="utf-8"></script>

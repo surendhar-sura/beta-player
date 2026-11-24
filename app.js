@@ -107,17 +107,41 @@ const LOCAL_DB = {
   }
 };
 
-// ─── BOOT SEQUENCE (Fast & Clean) ────────────────────────────────────────────
+// ─── UNIQUE USER IDENTIFIER GENERATOR ─────────────────────────────────────────
+function generateUniqueUserId() {
+  const chars = '0123456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  let rand = '';
+  for (let i = 0; i < 6; i++) {
+    rand += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return 'BP-' + rand;
+}
+
+// ─── BOOT SEQUENCE (15-20s Cinematic Loading with Percentage & Diagnostics) ───
+let bootAnimationId = null;
+
 function runBoot() {
-  const visited = localStorage.getItem('bp_visited') === '1';
   const loader = $('betaLoader');
   const bar = $('bootScanProgress');
   const txt = $('bootPercentText');
   const term = $('bootTerminal');
   if (!loader) return;
 
-  const totalTime = visited ? 220 : 450; // Ultra-fast boot (0.2s - 0.4s)
+  const totalTime = 18000; // 18 seconds (15-20s duration)
   const startTime = Date.now();
+
+  const logSteps = [
+    { pct: 0,  msg: '<p class="bl">[00.0s] ⚡ KERNEL: Initializing Beta Cinema Engine v2.0...</p>' },
+    { pct: 14, msg: '<p class="bl">[02.5s] 🔊 AUDIO: Calibrating 1000% WebAudio Gain Matrix & Compressor...</p>' },
+    { pct: 28, msg: '<p class="bl">[05.0s] 💾 STORAGE: Synchronizing IndexedDB Offline Cinema Vault...</p>' },
+    { pct: 42, msg: '<p class="bl">[07.5s] 🎬 VIDEO: Configuring 4K HDR Hardware-Accelerated Decoders...</p>' },
+    { pct: 56, msg: '<p class="bl">[10.0s] 👤 IDENTITY: Auto-generating Permanent Unique User Identity...</p>' },
+    { pct: 70, msg: '<p class="bl">[12.5s] 🎛 SHELL: Initializing Floating VLC Cinema Control Architecture...</p>' },
+    { pct: 85, msg: '<p class="bl">[15.0s] 🔒 SECURITY: Arming Distraction-Proof Screen Lock Guard...</p>' },
+    { pct: 98, msg: '<p class="bl bl-ok">[17.6s] 🚀 READY: All Subsystems Online. Launching Beta Player!</p>' }
+  ];
+
+  let nextStepIdx = 0;
 
   const updateProgress = () => {
     const elapsed = Date.now() - startTime;
@@ -126,19 +150,27 @@ function runBoot() {
     if (bar) bar.style.width = pct + '%';
     if (txt) txt.textContent = pct + '%';
 
+    while (nextStepIdx < logSteps.length && pct >= logSteps[nextStepIdx].pct) {
+      if (term) {
+        term.innerHTML += logSteps[nextStepIdx].msg;
+        term.scrollTop = term.scrollHeight;
+      }
+      nextStepIdx++;
+    }
+
     if (pct < 100) {
-      requestAnimationFrame(updateProgress);
+      bootAnimationId = requestAnimationFrame(updateProgress);
     } else {
       localStorage.setItem('bp_visited', '1');
-      if (term) term.innerHTML = '<p class="bl bl-ok">⚡ 100% READY</p>';
-      setTimeout(() => dismissLoader(), 80);
+      setTimeout(() => dismissLoader(), 250);
     }
   };
 
-  requestAnimationFrame(updateProgress);
+  bootAnimationId = requestAnimationFrame(updateProgress);
 }
 
 function dismissLoader() {
+  if (bootAnimationId) cancelAnimationFrame(bootAnimationId);
   const l = $('betaLoader'); if (!l) return;
   l.classList.add('loader-exit');
   setTimeout(() => { l.style.display = 'none'; }, 200);
@@ -156,6 +188,14 @@ function loadProfile() {
     }
   } catch (e) {
     console.warn('Error reading bp_profile from localStorage:', e);
+  }
+
+  // Ensure default unique ID is permanently generated for every user
+  if (!BP.profile.uid || BP.profile.uid === 'BP-777' || BP.profile.uid === 'BP-USER') {
+    BP.profile.uid = generateUniqueUserId();
+    try {
+      localStorage.setItem('bp_profile', JSON.stringify(BP.profile));
+    } catch (e) {}
   }
 
   // Restore from IndexedDB backup if available
@@ -363,35 +403,66 @@ function importProfileFromFile(input) {
   reader.readAsText(file);
 }
 
-// ─── SCREEN LOCK & LOCAL MOVIE DOWNLOAD ─────────────────────────────
+// ─── SCREEN LOCK (Distraction-Proof Child/Cinema Lock) ─────────────────────────
+let lockHintTimer = null;
+
 function toggleScreenLock() {
   BP.screenLocked = !BP.screenLocked;
   const shell = $('shell');
   const floatBtn = $('floatingLockBtn');
   const btnLock = $('btnLock');
 
+  // Close any popovers
+  const qsp = $('quickSettingsPop');
+  if (qsp) qsp.classList.add('hidden');
+
   if (BP.screenLocked) {
     if (shell) shell.classList.add('screen-locked');
-    if (floatBtn) floatBtn.classList.remove('hidden');
+    // Ensure lock button is completely hidden during movie playing so nothing covers the screen!
+    if (floatBtn) floatBtn.classList.add('hidden');
     if (btnLock) { btnLock.textContent = '🔒'; btnLock.classList.add('active'); }
-    flash('🔒 CONTROLS LOCKED • TAP 🔒 TO UNLOCK');
+    flash('🔒 SCREEN LOCKED — Press "L" or tap to unlock');
   } else {
     if (shell) shell.classList.remove('screen-locked');
     if (floatBtn) floatBtn.classList.add('hidden');
-    if (btnLock) { btnLock.textContent = '🔓'; btnLock.classList.remove('active'); }
-    flash('🔓 CONTROLS UNLOCKED');
+    if (btnLock) { btnLock.textContent = '🔒'; btnLock.classList.remove('active'); }
+    clearTimeout(lockHintTimer);
+    flash('🔓 SCREEN UNLOCKED — Full controls restored');
   }
 }
 
 function showLockedHint() {
-  flash('🔒 CONTROLS LOCKED • TAP 🔒 BUTTON TO UNLOCK');
+  flash('🔒 SCREEN LOCKED — Press "L" or tap unlock button');
   const floatBtn = $('floatingLockBtn');
   if (floatBtn) {
     floatBtn.classList.remove('hidden');
-    floatBtn.style.animation = 'none';
-    floatBtn.offsetHeight;
-    floatBtn.style.animation = 'lockPulse 0.5s ease 3';
+    clearTimeout(lockHintTimer);
+    // Auto-hide the unlock pill after 2.5s so it never blocks the movie!
+    lockHintTimer = setTimeout(() => {
+      if (BP.screenLocked && floatBtn) floatBtn.classList.add('hidden');
+    }, 2500);
   }
+}
+
+// ─── TOGGLE SIDEBAR & QUICK SETTINGS ──────────────────────────────────────────
+function toggleSidebar() {
+  const shell = $('shell');
+  if (!shell) return;
+  const isHidden = shell.classList.toggle('sidebar-hidden');
+  try {
+    localStorage.setItem('bp_sidebar_hidden', isHidden ? '1' : '0');
+  } catch (e) {}
+  flash(isHidden ? '🗂 SIDEBAR COLLAPSED (Press \\ to restore)' : '🗂 SIDEBAR RESTORED');
+}
+
+function toggleQuickSettings() {
+  if (BP.screenLocked) {
+    showLockedHint();
+    return;
+  }
+  const pop = $('quickSettingsPop');
+  if (!pop) return;
+  pop.classList.toggle('hidden');
 }
 
 function downloadCurrentMovie() {
@@ -919,13 +990,23 @@ function initAudio() {
     BP.a.ctx = new AC();
     BP.a.gain = BP.a.ctx.createGain();
     BP.a.gain.gain.value = BP.a.vol;
+
+    // Pro-audio Dynamics Compressor prevents harsh clipping when boosting up to 1000%
+    BP.a.comp = BP.a.ctx.createDynamicsCompressor();
+    BP.a.comp.threshold.setValueAtTime(-14, BP.a.ctx.currentTime);
+    BP.a.comp.knee.setValueAtTime(24, BP.a.ctx.currentTime);
+    BP.a.comp.ratio.setValueAtTime(8, BP.a.ctx.currentTime);
+    BP.a.comp.attack.setValueAtTime(0.003, BP.a.ctx.currentTime);
+    BP.a.comp.release.setValueAtTime(0.2, BP.a.ctx.currentTime);
+
     BP.a.analyser = BP.a.ctx.createAnalyser();
     BP.a.analyser.fftSize = 256;
     const v = $('mainVideo');
     if (!BP.a.src && v) {
       BP.a.src = BP.a.ctx.createMediaElementSource(v);
       BP.a.src.connect(BP.a.gain);
-      BP.a.gain.connect(BP.a.analyser);
+      BP.a.gain.connect(BP.a.comp);
+      BP.a.comp.connect(BP.a.analyser);
       BP.a.analyser.connect(BP.a.ctx.destination);
     }
   } catch (e) {
@@ -934,13 +1015,16 @@ function initAudio() {
 }
 
 function setVol(val) {
-  // Safe volume: range 0.0 to 2.0 (up to 200% boost without hardware distortion)
-  val = Math.max(0, Math.min(2, val));
+  // Volume range 0.0 to 10.0 (up to 1000% volume boost)
+  val = Math.max(0, Math.min(10, val));
   BP.a.vol = val;
   const v = $('mainVideo');
   if (v) {
     v.volume = Math.min(1, val);
     v.muted = (val === 0);
+  }
+  if (!BP.a.ctx && val > 1) {
+    initAudio();
   }
   if (BP.a.gain && BP.a.ctx) {
     try {
@@ -949,11 +1033,29 @@ function setVol(val) {
     } catch {}
   }
   const pct = Math.round(val * 100);
-  if ($('volSlider'))    $('volSlider').value    = val;
+  const fillPct = Math.min(100, (val / 10) * 100);
+
+  // Gradient color based on boost level (matching VLC green -> amber -> red wedge)
+  let barColor = '#10b981'; // 0-100% Emerald
+  if (pct > 600) barColor = '#ef4444'; // 600-1000% Red
+  else if (pct > 250) barColor = '#f97316'; // 250-600% Orange
+  else if (pct > 100) barColor = '#f59e0b'; // 100-250% Amber
+
+  if ($('volSlider')) {
+    $('volSlider').value = val;
+    $('volSlider').style.background = `linear-gradient(to right, ${barColor} 0%, ${barColor} ${fillPct}%, rgba(255,255,255,0.18) ${fillPct}%, rgba(255,255,255,0.18) 100%)`;
+  }
   if ($('volBigSlider')) $('volBigSlider').value = val;
-  if ($('volPct'))       $('volPct').textContent = pct + '%';
-  if ($('volBig'))       $('volBig').textContent = pct + '%';
-  if ($('muteIcon'))     $('muteIcon').textContent = val === 0 ? '🔇' : (val > 0.5 ? '🔊' : '🔉');
+  if ($('volPct')) {
+    $('volPct').textContent = pct + '%';
+    $('volPct').style.color = pct > 100 ? barColor : 'var(--text2)';
+    $('volPct').style.fontWeight = pct > 100 ? '700' : '500';
+  }
+  if ($('volBig')) {
+    $('volBig').textContent = pct + '%';
+    $('volBig').style.color = pct > 100 ? barColor : '#fff';
+  }
+  if ($('muteIcon')) $('muteIcon').textContent = val === 0 ? '🔇' : (val > 0.5 ? '🔊' : '🔉');
   updateTogglesBar();
 }
 
@@ -1090,6 +1192,7 @@ function onTimeUpdate() {
   const cur = v.currentTime || 0, dur = v.duration || 0;
   if ($('scrubTime'))   $('scrubTime').textContent   = fmt(cur);
   if ($('scrubRemain')) $('scrubRemain').textContent = dur > 0 ? '-' + fmt(dur - cur) : '-0:00:00';
+  if ($('ctrlTimeSummary')) $('ctrlTimeSummary').textContent = fmt(cur) + ' / ' + (dur > 0 ? fmt(dur) : '0:00:00');
   if (dur > 0) {
     const pct = (cur / dur) * 100;
     if ($('scrubFill'))  $('scrubFill').style.width  = pct + '%';
@@ -1167,8 +1270,10 @@ function setMode(mode) {
   }
   const modeStyles = {
     'fit':     { width:'100%', height:'100%', maxWidth:'100%', maxHeight:'100%', objectFit:'contain', aspectRatio:'' },
+    'cover':   { width:'100%', height:'100%', maxWidth:'100%', maxHeight:'100%', objectFit:'cover',   aspectRatio:'' },
     'theater': { width:'100%', height:'100%', maxWidth:'100%', maxHeight:'100%', objectFit:'cover',   aspectRatio:'' },
-    'fill':    { width:'100%', height:'100%', maxWidth:'100%', maxHeight:'100%', objectFit:'cover',   aspectRatio:'' },
+    'stretch': { width:'100%', height:'100%', maxWidth:'100%', maxHeight:'100%', objectFit:'fill',    aspectRatio:'' },
+    '16:9':    { width:'auto', height:'auto', maxWidth:'100%', maxHeight:'100%', objectFit:'contain', aspectRatio:'16/9' },
     '21:9':    { width:'auto', height:'auto', maxWidth:'100%', maxHeight:'100%', objectFit:'contain', aspectRatio:'21/9' },
     'imax':    { width:'auto', height:'auto', maxWidth:'100%', maxHeight:'100%', objectFit:'contain', aspectRatio:'1.43/1' },
     '9:16':    { width:'auto', height:'auto', maxWidth:'100%', maxHeight:'100%', objectFit:'contain', aspectRatio:'9/16' },
@@ -1185,13 +1290,16 @@ function setMode(mode) {
     v.style.objectFit = s.objectFit;
     v.style.aspectRatio = s.aspectRatio;
   }
+  try { localStorage.setItem('bp_aspect_ratio', mode); } catch(e) {}
   flash('📐 ' + mode.toUpperCase());
 }
 
-// Fixed Custom Frame Ratio
-function setCustomRatio() {
-  const w = parseFloat($('cwW').value) || 16;
-  const h = parseFloat($('cwH').value) || 9;
+// Fixed Custom Frame Ratio & Zoom Scale
+function setCustomRatio(w, h) {
+  if (!w || !h) {
+    w = parseFloat($('cwW')?.value) || 16;
+    h = parseFloat($('cwH')?.value) || 9;
+  }
   const v = $('mainVideo');
   if (!v) return;
 
@@ -1202,17 +1310,63 @@ function setCustomRatio() {
   v.style.aspectRatio = `${w}/${h}`;
   v.style.objectFit = 'contain';
 
-  flash(`📐 ${w}:${h} Applied`);
+  try { localStorage.setItem('bp_aspect_ratio', `${w}/${h}`); } catch(e) {}
+  flash(`📐 ${w}:${h} Ratio Applied`);
   closeM('mScreenModes');
 }
 
+function setVideoScale(val) {
+  BP.v.scale = parseFloat(val) || 1;
+  const v = $('mainVideo');
+  if (v) {
+    const isMirrored = v.style.transform && v.style.transform.includes('scaleX(-1)');
+    v.style.transform = (isMirrored ? 'scaleX(-1) ' : '') + `scale(${BP.v.scale})`;
+  }
+  const lbl = $('qspScaleVal');
+  if (lbl) lbl.textContent = Math.round(BP.v.scale * 100) + '%';
+  try { localStorage.setItem('bp_scale', BP.v.scale); } catch (e) {}
+}
+
 function toggleFullscreen() {
-  if (!document.fullscreenElement) {
-    ($('videoWrap') || document.documentElement).requestFullscreen().catch(() => {});
+  const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement);
+  if (!isFs) {
+    // Request fullscreen on stage so BOTH video and controls/duration are present!
+    const stage = $('stage') || document.documentElement;
+    if (stage.requestFullscreen) {
+      stage.requestFullscreen().catch(() => {});
+    } else if (stage.webkitRequestFullscreen) {
+      stage.webkitRequestFullscreen();
+    } else if (stage.mozRequestFullScreen) {
+      stage.mozRequestFullScreen();
+    }
   } else {
-    document.exitFullscreen().catch(() => {});
+    if (document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {});
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    } else if (document.mozCancelFullScreen) {
+      document.mozCancelFullScreen();
+    }
   }
 }
+
+function onFullscreenChange() {
+  const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+  const icon = $('fsIcon');
+  if (icon) icon.textContent = isFs ? '⛶' : '⛶';
+  const stage = $('stage');
+  if (stage) {
+    stage.classList.toggle('vlc-fullscreen', isFs);
+    stage.classList.remove('idle-hide');
+  }
+  const ctrls = $('controls');
+  if (ctrls) {
+    ctrls.style.opacity = '1';
+    ctrls.style.pointerEvents = 'all';
+  }
+}
+document.addEventListener('fullscreenchange', onFullscreenChange);
+document.addEventListener('webkitfullscreenchange', onFullscreenChange);
 
 function togglePiP() {
   const v = $('mainVideo'); if (!v) return;
@@ -2091,6 +2245,10 @@ function setupContextMenu() {
   const co = $('clickOverlay'); const menu = $('ctxMenu'); if (!co || !menu) return;
   co.addEventListener('contextmenu', e => {
     e.preventDefault();
+    if (BP.screenLocked) {
+      showLockedHint();
+      return;
+    }
     menu.style.cssText = `display:block;left:${Math.min(e.clientX, window.innerWidth - 180)}px;top:${Math.min(e.clientY, window.innerHeight - 320)}px`;
   });
   document.addEventListener('click', () => { if (menu) menu.style.display = 'none'; });
@@ -2102,7 +2260,9 @@ function setupContextMenu() {
         showLockedHint();
       }
       return;
-    } if (e.key === 'Escape' && menu) menu.style.display = 'none'; });
+    }
+    if (e.key === 'Escape' && menu) menu.style.display = 'none';
+  });
 }
 
 function ctxAction(fn) {
@@ -2110,15 +2270,16 @@ function ctxAction(fn) {
   if (typeof fn === 'function') fn();
 }
 
-// ─── MOUSE SCROLL = VOLUME ───────────────────────────────────────────────────
+// ─── MOUSE SCROLL = VOLUME (Up to 1000% Boost) ──────────────────────────────
 function setupScrollVolume() {
   const wrap = $('videoWrap'); if (!wrap) return;
   wrap.addEventListener('wheel', e => {
     e.preventDefault();
+    if (BP.screenLocked) { showLockedHint(); return; }
     const delta = e.deltaY < 0 ? 0.1 : -0.1;
-    const nv = Math.max(0, Math.min(2, BP.a.vol + delta));
+    const nv = Math.max(0, Math.min(10, +(BP.a.vol + delta).toFixed(2)));
     setVol(nv);
-    showHUD(delta > 0 ? '🔊' : '🔉', Math.round(nv * 100) + '%');
+    showHUD(delta > 0 ? '🔊' : '🔉', Math.round(nv * 100) + (nv > 1 ? '% BOOST' : '%'));
   }, { passive: false });
 }
 
@@ -2222,6 +2383,10 @@ function setupClickOverlay() {
   let clickTimer = null, lastTap = 0;
 
   co.addEventListener('click', () => {
+    if (BP.screenLocked) {
+      showLockedHint();
+      return;
+    }
     const now = Date.now();
     if (now - lastTap < 300) {
       clearTimeout(clickTimer); lastTap = 0; toggleFullscreen(); return;
@@ -2231,6 +2396,11 @@ function setupClickOverlay() {
   });
 
   co.addEventListener('touchend', e => {
+    if (BP.screenLocked) {
+      e.preventDefault();
+      showLockedHint();
+      return;
+    }
     e.preventDefault();
     const now = Date.now();
     if (now - lastTap < 300) {
@@ -2373,12 +2543,28 @@ function setupKeyboard() {
     const ob = $('onboardingOverlay');
     if (ob && !ob.classList.contains('hidden')) return;
 
+    // Distraction-Proof Screen Lock Guard
+    if (BP.screenLocked) {
+      if (e.code === 'KeyL') {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleScreenLock();
+      } else {
+        e.preventDefault();
+        e.stopPropagation();
+        showLockedHint();
+      }
+      return;
+    }
+
     switch (e.code) {
       case 'Space': case 'KeyK': e.preventDefault(); togglePlay(); break;
       case 'ArrowLeft':  case 'KeyJ': e.preventDefault(); seekBy(-10); break;
-      case 'ArrowRight': case 'KeyL': e.preventDefault(); seekBy(+10); break;
-      case 'ArrowUp':    e.preventDefault(); setVol(Math.min(2, BP.a.vol + 0.1)); showHUD('🔊', Math.round(BP.a.vol * 100) + '%'); break;
-      case 'ArrowDown':  e.preventDefault(); setVol(Math.max(0, BP.a.vol - 0.1)); showHUD('🔉', Math.round(BP.a.vol * 100) + '%'); break;
+      case 'ArrowRight': e.preventDefault(); seekBy(+10); break;
+      case 'KeyL': e.preventDefault(); toggleScreenLock(); break;
+      case 'Backslash': e.preventDefault(); toggleSidebar(); break;
+      case 'ArrowUp':    e.preventDefault(); setVol(Math.min(10, +(BP.a.vol + 0.1).toFixed(2))); showHUD('🔊', Math.round(BP.a.vol * 100) + (BP.a.vol > 1 ? '% BOOST' : '%')); break;
+      case 'ArrowDown':  e.preventDefault(); setVol(Math.max(0, +(BP.a.vol - 0.1).toFixed(2))); showHUD('🔉', Math.round(BP.a.vol * 100) + '%'); break;
       case 'KeyM': e.preventDefault(); toggleMute(); break;
       case 'KeyF': e.preventDefault(); toggleFullscreen(); break;
       case 'KeyS': e.preventDefault(); stopPlayback(); break;
@@ -2403,9 +2589,90 @@ function setupKeyboard() {
       case 'Digit1': e.preventDefault(); setSpd(1); break;
       case 'Digit2': e.preventDefault(); setSpd(2); break;
       case 'Digit3': e.preventDefault(); setSpd(0.5); break;
-      case 'Escape': closeAll(); break;
+      case 'Escape':
+        const qsp = $('quickSettingsPop');
+        if (qsp && !qsp.classList.contains('hidden')) { qsp.classList.add('hidden'); return; }
+        closeAll();
+        break;
     }
   });
+}
+
+// ─── MODERN TOOLTIP BADGE SYSTEM (Action + Shortcut pill) ─────────────────────
+function setupTooltips() {
+  const tip = $('bpTooltip');
+  const tipTxt = $('bpTipText');
+  const tipKbd = $('bpTipKbd');
+  if (!tip || !tipTxt || !tipKbd) return;
+
+  const showTooltip = el => {
+    if (BP.screenLocked) return;
+
+    let title = el.getAttribute('data-orig-title') || el.getAttribute('title') || '';
+    if (!title && el.getAttribute('data-tip')) {
+      title = el.getAttribute('data-tip');
+      if (el.getAttribute('data-kbd')) title += ` (${el.getAttribute('data-kbd')})`;
+    }
+    if (!title) return;
+
+    // Cache original title to prevent default OS tooltip
+    if (el.hasAttribute('title')) {
+      el.setAttribute('data-orig-title', title);
+      el.removeAttribute('title');
+    }
+
+    // Parse: e.g. "Play/Pause (Space)" => text: "Play/Pause", kbd: "Space"
+    let text = title;
+    let kbd = '';
+    const match = title.match(/^(.*?)\s*\((.+?)\)$/);
+    if (match) {
+      text = match[1].trim();
+      kbd = match[2].trim();
+    }
+
+    tipTxt.textContent = text;
+    if (kbd) {
+      tipKbd.textContent = kbd;
+      tipKbd.style.display = 'inline-block';
+    } else {
+      tipKbd.style.display = 'none';
+    }
+
+    tip.classList.remove('hidden');
+    tip.classList.add('visible');
+
+    const rect = el.getBoundingClientRect();
+    const tipRect = tip.getBoundingClientRect();
+    let left = rect.left + (rect.width / 2) - (tipRect.width / 2);
+    let top = rect.top - tipRect.height - 8;
+
+    if (top < 10) top = rect.bottom + 8;
+    if (left < 10) left = 10;
+    if (left + tipRect.width > window.innerWidth - 10) {
+      left = window.innerWidth - tipRect.width - 10;
+    }
+
+    tip.style.left = `${left}px`;
+    tip.style.top = `${top}px`;
+  };
+
+  const hideTooltip = () => {
+    tip.classList.remove('visible');
+    tip.classList.add('hidden');
+  };
+
+  document.addEventListener('mouseover', e => {
+    const el = e.target.closest('[title], [data-orig-title], [data-tip], .cb, .hdr-btn, .mn-btn, .qsp-chip, .btn');
+    if (el) showTooltip(el);
+  }, true);
+
+  document.addEventListener('mouseout', e => {
+    const el = e.target.closest('[title], [data-orig-title], [data-tip], .cb, .hdr-btn, .mn-btn, .qsp-chip, .btn');
+    if (el) hideTooltip();
+  }, true);
+
+  window.addEventListener('scroll', hideTooltip, true);
+  window.addEventListener('click', hideTooltip, true);
 }
 
 // ─── BOOT ENTRY POINT ────────────────────────────────────────────────────────
@@ -2430,6 +2697,14 @@ async function boot() {
 
   setupContextMenu();
   setupScrollVolume();
+  setupTooltips();
+
+  // Restore sidebar collapse preference
+  if (localStorage.getItem('bp_sidebar_hidden') === '1') {
+    const sh = $('shell');
+    if (sh) sh.classList.add('sidebar-hidden');
+  }
+
   loadGenreLists();
   buildSubFonts();
   buildSubColors();
