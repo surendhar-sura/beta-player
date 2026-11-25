@@ -2717,6 +2717,8 @@ async function boot() {
   await LOCAL_DB.init();
   loadLocalPlaylist();
 
+  const v = $('mainVideo');
+
   // Save progress on pause, seek, and beforeunload so refresh always resumes exact second
   window.addEventListener('beforeunload', saveProgress);
   window.addEventListener('pagehide', saveProgress);
@@ -2726,13 +2728,14 @@ async function boot() {
     v.addEventListener('seeked', saveProgress);
   }
 
+  // Register PWA Offline Engine & Service Worker
+  registerPWA();
+  updateOnlineStatus();
+
   // Auto-resume immediately on boot without delay
   setTimeout(async () => {
     await checkResume();
   }, 400);
-
-  // Hook in-built subtitle detector on video events
-  const v = $('mainVideo');
   if (v) {
     v.addEventListener('loadedmetadata', detectInbuildSubtitles);
     v.addEventListener('canplay', detectInbuildSubtitles);
@@ -2948,3 +2951,63 @@ function removeAvatarPhoto() {
   applyProfileCustomStyles();
   flash('📷 PHOTO RESET TO DEFAULT');
 }
+
+// ─── PWA & SERVICE WORKER OFFLINE ENGINE ──────────────────────────────────────
+let deferredPWAInstallPrompt = null;
+
+function registerPWA() {
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').then(reg => {
+        console.log('[PWA] Service Worker registered:', reg.scope);
+      }).catch(err => {
+        console.warn('[PWA] Service Worker note:', err);
+      });
+    });
+  }
+
+  // Handle Chrome / Android PWA Install Prompt
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPWAInstallPrompt = e;
+    const btnInstall = $('btnInstallApp');
+    if (btnInstall) btnInstall.style.display = 'inline-flex';
+    const qspInstall = $('qspInstallBtn');
+    if (qspInstall) qspInstall.style.display = 'inline-block';
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredPWAInstallPrompt = null;
+    flash('📲 BETA PLAYER INSTALLED SUCCESSFULLY!');
+    const btnInstall = $('btnInstallApp');
+    if (btnInstall) btnInstall.style.display = 'none';
+  });
+}
+
+function promptInstallPWA() {
+  if (deferredPWAInstallPrompt) {
+    deferredPWAInstallPrompt.prompt();
+    deferredPWAInstallPrompt.userChoice.then(choice => {
+      if (choice.outcome === 'accepted') {
+        flash('📲 Installing Beta Player app...');
+      }
+      deferredPWAInstallPrompt = null;
+    });
+  } else {
+    flash('📲 In Chrome: tap Menu (⋮) → "Install app" or "Add to Home screen" to run offline!');
+  }
+}
+
+// ─── OFFLINE MODE MONITOR ────────────────────────────────────────────────────
+function updateOnlineStatus() {
+  const pill = $('offlinePill');
+  const isOffline = !navigator.onLine;
+  if (pill) {
+    pill.style.display = isOffline ? 'inline-flex' : 'none';
+  }
+  if (isOffline) {
+    flash('⚡ OFFLINE MODE: Running 100% offline with local movies!');
+  }
+}
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);

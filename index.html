@@ -4,6 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>BETA PLAYER v2.0 — by Surendhar S</title>
+  <meta name="theme-color" content="#08090f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Beta Player">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="styles.css">
@@ -96,9 +103,18 @@
       <div class="np-badge" id="npBadge">—</div>
     </div>
 
+    <!-- 100% Offline Badge (Shown when offline/no internet) -->
+    <div id="offlinePill" style="display:none;align-items:center;gap:6px;padding:3px 10px;border-radius:20px;background:rgba(16,185,129,0.12);border:1px solid #10b981;font-size:11px;color:#10b981;font-weight:700" title="Running 100% Offline — No Internet Needed">
+      <span>⚡</span> <span>OFFLINE MODE</span>
+    </div>
+
     <div class="hdr-gap"></div>
 
     <div class="hdr-actions">
+      <button class="hdr-btn" id="btnInstallApp" onclick="promptInstallPWA()" title="Install App for Offline Use (📲)" style="display:none;background:rgba(6,182,212,0.15);border-color:var(--ac);color:var(--ac)">
+        <span class="hdr-btn-icon">📲</span>
+        <span class="hdr-btn-label">Install App</span>
+      </button>
       <button class="hdr-btn" onclick="togglePlaylistPanel()" title="Playlist (P)">
         <span class="hdr-btn-icon">📋</span>
         <span class="hdr-btn-label">Playlist</span>
@@ -347,6 +363,7 @@
                 <button class="qsp-chip" onclick="toggleSubs()">💬 Subtitles</button>
                 <button class="qsp-chip" onclick="setDim(BP.v.dim==='off'?'3d':'off')">🌐 3D Mode</button>
                 <button class="qsp-chip" onclick="takeSnapshot()">📸 Snapshot</button>
+                <button class="qsp-chip" id="qspInstallBtn" onclick="promptInstallPWA()">📲 Install as App (Offline)</button>
                 <button class="qsp-chip" onclick="toggleScreenLock()">🔒 Screen Lock (L)</button>
                 <button class="qsp-chip" onclick="toggleSidebar()">🗂 Toggle Sidebar (\)</button>
                 <button class="qsp-chip" onclick="openM('mSettings')">⚙️ Full Settings</button>
