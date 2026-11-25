@@ -2970,31 +2970,34 @@ function registerPWA() {
   window.addEventListener('beforeinstallprompt', e => {
     e.preventDefault();
     deferredPWAInstallPrompt = e;
-    const btnInstall = $('btnInstallApp');
-    if (btnInstall) btnInstall.style.display = 'inline-flex';
-    const qspInstall = $('qspInstallBtn');
-    if (qspInstall) qspInstall.style.display = 'inline-block';
   });
 
   window.addEventListener('appinstalled', () => {
     deferredPWAInstallPrompt = null;
-    flash('📲 BETA PLAYER INSTALLED SUCCESSFULLY!');
+    flash('⚡ BETA PLAYER INSTALLED SUCCESSFULLY!');
     const btnInstall = $('btnInstallApp');
-    if (btnInstall) btnInstall.style.display = 'none';
+    if (btnInstall) btnInstall.innerHTML = '<span class="hdr-btn-icon">✓</span><span class="hdr-btn-label">Installed</span>';
+    const sbBtn = $('sidebarInstallBtn');
+    if (sbBtn) sbBtn.innerHTML = '✓<span class="lbl">Installed</span>';
   });
 }
 
 function promptInstallPWA() {
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if (isStandalone) {
+    flash('✅ Beta Player is already installed and running offline!');
+    return;
+  }
   if (deferredPWAInstallPrompt) {
     deferredPWAInstallPrompt.prompt();
     deferredPWAInstallPrompt.userChoice.then(choice => {
       if (choice.outcome === 'accepted') {
-        flash('📲 Installing Beta Player app...');
+        flash('⚡ Installing Beta Player app...');
       }
       deferredPWAInstallPrompt = null;
     });
   } else {
-    flash('📲 In Chrome: tap Menu (⋮) → "Install app" or "Add to Home screen" to run offline!');
+    openM('mInstall');
   }
 }
 
